@@ -616,8 +616,24 @@ static void draw() {
 
 } // namespace
 
-bool tamaDashOpen() {
-  return active;
+void tamaDashOpen() {
+  if (active) return;
+
+  g = gfx;
+  W = (float)gfx->width();
+  H = (float)gfx->height();
+  sc = W / 466.0f;
+  cx = W / 2.0f;
+  R = 1.5f * W;
+  G = H * 0.64f;
+  foxX = W * 0.30f;
+
+  loadBest();
+  rngS ^= micros();
+  resetRun();
+  active = true;
+  lastMs = millis();
+  lastTapMs = 0;
 }
 
 void tamaDashResetEasterEgg() {
@@ -667,36 +683,35 @@ bool tamaDashHandleSunTap(int16_t x, int16_t y) {
   return true;
 }
 
-bool tamaDashTap(int16_t x, int16_t y) {
+void tamaDashTap(int16_t x, int16_t y) {
   if (!active) return false;
 
   // Groessere unsichtbare Touchflaeche fuer den kleinen Pfeil.
   if (y < 66 * sc && fabsf(x - cx) < 55 * sc) {
     st = ST_EXIT;
-    return false;
+    return;
   }
 
   uint32_t now = millis();
-  if (now - lastTapMs < 50) return false;
+  if (now - lastTapMs < 50) return;
   lastTapMs = now;
 
   jump();
-  return false;
 }
 
-void tamaDashRender() {
-  if (!active) return;
+bool tamaDashRender() {
+  if (!active) return false;
 
   if (st == ST_EXIT) {
     active = false;
     st = ST_RUNNING;
     tamaDashResetEasterEgg();
     g = nullptr;
-    return;
+    return false;
   }
 
   uint32_t now = millis();
-  if (now - lastMs < 16) return;
+  if (now - lastMs < 16) return true;
 
   float dt = (now - lastMs) / 1000.0f;
   if (dt > 0.05f) dt = 0.05f;
@@ -705,4 +720,10 @@ void tamaDashRender() {
   update(dt);
   draw();
   g->flush();
+  return true;
+}
+
+
+bool tamaDashActive() {
+  return active;
 }
