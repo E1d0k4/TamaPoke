@@ -206,7 +206,9 @@ static void jump() {
     jumpV = JUMP_V * sc;
     st = ST_JUMPING;
     fastFell = false;
-    sfxPlay(SFX_PLAY);
+    // Do not trigger a blocking/visually disruptive audio path from the
+    // touch-to-jump event. The runner must keep the display frame sequence
+    // uninterrupted while the jump starts.
     return;
   }
 
