@@ -377,10 +377,15 @@ void updateBrightness(uint32_t now) {
   uint32_t idle = now - lastInteract;
   dimStage = (idle > 300000) ? 2 : (idle > 90000) ? 1 : 0;
   const uint8_t normal = normalBrightnessTarget();
-  uint8_t target = pet.sleeping ? min<uint8_t>(normal, 25) : normal;
+  uint8_t target = pet.sleeping ? (normal < 25 ? normal : 25) : normal;
   const uint8_t base = usbPresent() ? 180 : 145;
-  if (dimStage == 1) target = max<uint8_t>(1, (uint8_t)(normal * 60L / base));
-  else if (dimStage == 2) target = max<uint8_t>(1, (uint8_t)(normal * 8L / base));
+  if (dimStage == 1) {
+    int d = (int)(normal * 60L / base);
+    target = (uint8_t)(d < 1 ? 1 : d);
+  } else if (dimStage == 2) {
+    int d = (int)(normal * 8L / base);
+    target = (uint8_t)(d < 1 ? 1 : d);
+  }
   if (screenOff) target = 0;
   static uint8_t current = 255;
   if (target != current) {
@@ -552,7 +557,7 @@ void handleTouch() {
     tXl = x;
     tYl = y;
     // pulsacion larga sin moverse sobre el bicho -> dialogo de soltar
-    if (!holdFired && !swallowGesture && !galleryOpen && !cardOpen && !kbOpen && !clockOpen && millis() - tStart > 3000 &&
+    if (!holdFired && !swallowGesture && !galleryOpen && !cardOpen && !kbOpen && !clockOpen && !settingsOpen && millis() - tStart > 3000 &&
         abs(tXl - tX0) < 30 && abs(tYl - tY0) < 30 && inPetZone(tX0, tY0) &&
         !pet.isEgg() && !confirmUntil && !pet.ceremony) {
       confirmUntil = millis() + 10000;
@@ -576,7 +581,7 @@ void openClock();  // prototipo
 
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (gameOpen || galleryOpen || kbOpen || sackOpen || pet.ceremony) return;
+  if (gameOpen || galleryOpen || kbOpen || sackOpen || settingsOpen || pet.ceremony) return;
   if (clockOpen) { clockOpen = false; return; }
   if (cardOpen) {
     if (dir < 0) cardOpen = false;  // arriba cierra la ficha
