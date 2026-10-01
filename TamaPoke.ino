@@ -27,7 +27,7 @@
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
 #define ORIGINAL_VERSION "1.17"
-#define FORK_VERSION "0.1.1"
+#define FORK_VERSION "0.1.2"
 #define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
@@ -1568,90 +1568,93 @@ void renderClock() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX(T(S_SET_TIME), 3), 30);
+  setCur(centerX(T(S_SET_TIME), 3), 16);
   printT(T(S_SET_TIME));
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
   setSize(6);
-  setCur(CX - 90, 78);
+  setCur(CX - 90, 52);
   printT(t);
 
-  drawClockBtn(104, 145, "-");
-  drawClockBtn(170, 145, "+");
-  drawClockBtn(252, 145, "-");
-  drawClockBtn(318, 145, "+");
+  drawClockBtn(104, 112, "-");
+  drawClockBtn(170, 112, "+");
+  drawClockBtn(252, 112, "-");
+  drawClockBtn(318, 112, "+");
   setSize(2);
   gfx->setTextColor(UI_TRACK);
-  setCur(120, 211);
+  setCur(120, 178);
   printT(T(S_HOUR));
-  setCur(276, 211);
+  setCur(276, 178);
   printT(T(S_MIN));
 
   // Fork-Einstellungen direkt in dieser vorhandenen Einstellungsseite.
-  drawSunIcon(74, 264, UI_INK);
+  drawSunIcon(72, 226, UI_INK);
   char b[8];
   snprintf(b, sizeof(b), "%u%%", userBrightness);
   setSize(3);
   gfx->setTextColor(UI_INK);
-  setCur(130, 253);
+  setCur(122, 215);
   printT(b);
-  drawSettingButton(214, 238, "-");
-  drawSettingButton(290, 238, "+");
+  drawSettingButton(214, 200, "-");
+  drawSettingButton(290, 200, "+");
 
-  drawSpeakerIcon(74, 320, UI_INK);
+  drawSpeakerIcon(72, 282, UI_INK);
   char v[8];
   snprintf(v, sizeof(v), "%u%%", audioVolume());
   setSize(3);
   gfx->setTextColor(UI_INK);
-  setCur(130, 309);
+  setCur(122, 271);
   printT(v);
-  drawSettingButton(214, 294, "-");
-  drawSettingButton(290, 294, "+");
+  drawSettingButton(214, 256, "-");
+  drawSettingButton(290, 256, "+");
 
   // Sound + Sprache bleiben ebenfalls auf derselben Seite.
   bool snd = audioEnabled();
   const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
-  gfx->fillRoundRect(34, 358, 96, 28, 8, snd ? UI_BAR_OK : UI_WHITE);
-  gfx->drawRoundRect(34, 358, 96, 28, 8, UI_INK);
+  gfx->fillRoundRect(34, 314, 120, 30, 8, snd ? UI_BAR_OK : UI_WHITE);
+  gfx->drawRoundRect(34, 314, 120, 30, 8, UI_INK);
   gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
   setSize(2);
-  setCur(34 + (96 - textW(sl, 2)) / 2, 365);
+  setCur(34 + (120 - textW(sl, 2)) / 2, 321);
   printT(sl);
 
-  gfx->fillRoundRect(LANG_PILL_X, 358, LANG_PILL_W, 28, 8, UI_WHITE);
-  gfx->drawRoundRect(LANG_PILL_X, 358, LANG_PILL_W, 28, 8, UI_INK);
+  gfx->fillRoundRect(LANG_PILL_X, 314, LANG_PILL_W, 30, 8, UI_WHITE);
+  gfx->drawRoundRect(LANG_PILL_X, 314, LANG_PILL_W, 30, 8, UI_INK);
   char lp[10];
   snprintf(lp, sizeof(lp), "%s >", LANG_CODES[gLang]);
   gfx->setTextColor(UI_INK);
   setSize(2);
-  setCur(LANG_PILL_X + (LANG_PILL_W - textW(lp, 2)) / 2, 365);
+  setCur(LANG_PILL_X + (LANG_PILL_W - textW(lp, 2)) / 2, 321);
   printT(lp);
 
-  gfx->fillRoundRect(133, 392, 200, 42, 14, UI_BAR_OK);
+  gfx->fillRoundRect(133, 358, 200, 42, 14, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(CX - 18, 402);
+  setCur(CX - 18, 368);
   printT("OK");
 
-  gfx->setTextColor(UI_TRACK);
-  setSize(1);
+  // Separate, high-contrast version area; kept fully inside the 466x466 display.
+  gfx->fillRoundRect(54, 414, 358, 34, 10, UI_WHITE);
+  gfx->drawRoundRect(54, 414, 358, 34, 10, UI_INK);
+  gfx->setTextColor(UI_INK);
+  setSize(2);
   char ver[40];
-  snprintf(ver, sizeof(ver), "Original %s  |  Fork %s", ORIGINAL_VERSION, FORK_VERSION);
-  setCur(centerX(ver, 1), 444);
+  snprintf(ver, sizeof(ver), "Original: %s  |  Fork: %s", ORIGINAL_VERSION, FORK_VERSION);
+  setCur(centerX(ver, 2), 422);
   printT(ver);
   gfx->flush();
 }
 
 void clockTap(int16_t x, int16_t y) {
-  if (y >= 145 && y <= 203) {
+  if (y >= 112 && y <= 170) {
     if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
     else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
     else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
     else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
     return;
   }
-  if (y >= 238 && y <= 290) {
+  if (y >= 200 && y <= 252) {
     if (x >= 214 && x < 276) {
       userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
       saveUserBrightness();
@@ -1669,7 +1672,7 @@ void clockTap(int16_t x, int16_t y) {
       return;
     }
   }
-  if (y >= 294 && y <= 346) {
+  if (y >= 256 && y <= 308) {
     if (x >= 214 && x < 276) {
       uint8_t v = audioVolume();
       audioSetVolume(v <= 10 ? 10 : v - 10);
@@ -1683,8 +1686,8 @@ void clockTap(int16_t x, int16_t y) {
       return;
     }
   }
-  if (y >= 358 && y <= 386) {
-    if (x >= 34 && x < 130) {
+  if (y >= 314 && y <= 344) {
+    if (x >= 34 && x < 154) {
       audioSetEnabled(!audioEnabled());
       if (audioEnabled()) sfxPlay(SFX_TAP);
       return;
@@ -1696,7 +1699,7 @@ void clockTap(int16_t x, int16_t y) {
       return;
     }
   }
-  if (y >= 392 && y <= 434 && x >= 133 && x <= 333) {
+  if (y >= 358 && y <= 400 && x >= 133 && x <= 333) {
     applyClock();
     return;
   }
