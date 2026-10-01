@@ -92,7 +92,7 @@ jobs:
   web-installer:
     name: Build and deploy web installer
     runs-on: ubuntu-latest
-    needs: firmware
+    needs: [firmware, generated, tools-lint, tests, i18n]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
