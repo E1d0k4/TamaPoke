@@ -15,9 +15,6 @@ jobs:
       - name: Install arduino-cli
         uses: arduino/setup-arduino-cli@v2
 
-      # Fijado a la version del core verificada para compilar este sketch. Subirla
-      # a mano y a proposito: alguna version nueva del core ha roto librerias de
-      # terceros antes.
       - name: Install ESP32 core
         run: |
           arduino-cli config init --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -48,9 +45,6 @@ jobs:
           python3 tools/gen_dex.py
           python3 tools/sprites.py emit
 
-      # dex.h y species.h llevan "GENERADO - no editar" en su cabecera; esto pilla
-      # a quien edite la salida en vez del generador, o se olvide de regenerar
-      # tras tocar los datos de origen.
       - name: Fail if regenerating produced a diff
         run: git diff --exit-code -- dex.h species.h
 
@@ -73,10 +67,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      # pet.cpp / i18n.cpp / dex.h compilan y corren en el PC contra unos shims
-      # de Arduino, con millis() y random() falsos y una NVS en memoria. Aqui es
-      # donde se han roto las cosas: los tres bugs de la v1.3, v1.4 y v1.8 eran
-      # logica pura y estos tests los pillan sin tocar la placa.
       - name: Run the suite (plus AddressSanitizer + UBSan)
         run: ./test/run_tests.sh --asan
 
@@ -89,3 +79,39 @@ jobs:
         with:
           python-version: "3.x"
       - run: python3 tools/test_i18n_formats.py
+
+  web-installer:
+    name: Build web installer
+    runs-on: ubuntu-latest
+    needs: firmware
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.10
+
+      - name: Install Arduino libraries
+        run: arduino-cli lib install "GFX Library for Arduino" SensorLib XPowersLib U8g2
+
+      - name: Install Python tools
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pillow esptool
+
+      - name: Build firmware and sprite bundle
+        run: bash tools/build_web.sh
+
+      - name: Upload installer
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./web
+
+      - name: Deploy installer to GitHub Pages
+        uses: actions/deploy-pages@v4
+        id: deployment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
