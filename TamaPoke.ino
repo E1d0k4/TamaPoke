@@ -27,7 +27,7 @@
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
 #define ORIGINAL_VERSION "1.17"
-#define FORK_VERSION "0.1.0"
+#define FORK_VERSION "0.1.1"
 #define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
@@ -75,7 +75,6 @@ char nameBuf[12] = "";
 uint8_t nameLen = 0;
 uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
 bool clockOpen = false;       // pantalla de ajuste de hora (deslizar abajo)
-bool settingsOpen = false;    // ajustes propios de la fork
 int clockH = 12, clockM = 0;  // hora en edicion
 
 // ajustes persistentes de la fork
@@ -161,8 +160,6 @@ volatile bool gTouchIrq = false;
 void IRAM_ATTR touchIsr() { gTouchIrq = true; }
 uint32_t lastRender = 0;
 void updateBrightness(uint32_t now);
-void renderSettings();
-void settingsTap(int16_t x, int16_t y);
 
 // proteccion del AMOLED: atenuado por inactividad
 uint32_t lastInteract = 0;
@@ -557,7 +554,7 @@ void handleTouch() {
     tXl = x;
     tYl = y;
     // pulsacion larga sin moverse sobre el bicho -> dialogo de soltar
-    if (!holdFired && !swallowGesture && !galleryOpen && !cardOpen && !kbOpen && !clockOpen && !settingsOpen && millis() - tStart > 3000 &&
+    if (!holdFired && !swallowGesture && !galleryOpen && !cardOpen && !kbOpen && !clockOpen && millis() - tStart > 3000 &&
         abs(tXl - tX0) < 30 && abs(tYl - tY0) < 30 && inPetZone(tX0, tY0) &&
         !pet.isEgg() && !confirmUntil && !pet.ceremony) {
       confirmUntil = millis() + 10000;
@@ -581,7 +578,7 @@ void openClock();  // prototipo
 
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (gameOpen || galleryOpen || kbOpen || sackOpen || settingsOpen || pet.ceremony) return;
+  if (gameOpen || galleryOpen || kbOpen || sackOpen || pet.ceremony) return;
   if (clockOpen) { clockOpen = false; return; }
   if (cardOpen) {
     if (dir < 0) cardOpen = false;  // arriba cierra la ficha
@@ -598,7 +595,7 @@ void onSwipeV(int dir) {
 // deslizar: dir +1 = hacia la derecha
 void onSwipe(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (gameOpen || kbOpen || clockOpen || settingsOpen) return;
+  if (gameOpen || kbOpen || clockOpen) return;
   if (cardOpen) {  // dentro de la ficha: cambiar entre las 4 paginas
     int p = (int)cardPage + (dir > 0 ? -1 : 1);  // izquierda avanza
     cardPage = p < 0 ? 0 : (p > 3 ? 3 : p);
@@ -657,18 +654,7 @@ void onTap(int16_t x, int16_t y) {
     clockTap(x, y);
     return;
   }
-  if (settingsOpen) {
-    settingsTap(x, y);
-    return;
-  }
   if (pet.ceremony) return;  // durante la despedida no hay botones
-  // engranaje: ajustes propios de la fork
-  if (x >= 378 && x <= 438 && y >= 92 && y <= 152) {
-    settingsOpen = true;
-    lastInteract = millis();
-    sfxPlay(SFX_TAP);
-    return;
-  }
   if (cardOpen) {
     if (cardPage == 0 && y < 84) openKeyboard();  // tocar el nombre = renombrar
     else if (cardPage == 1 && y >= 300 && y <= 340 && x >= 96 && x <= 370) {
@@ -1041,10 +1027,6 @@ void render() {
   }
   if (clockOpen) {
     renderClock();
-    return;
-  }
-  if (settingsOpen) {
-    renderSettings();
     return;
   }
   if (cardOpen) {
@@ -1511,19 +1493,6 @@ void drawCardStat(int y, const char *label, uint16_t val, uint16_t maxBar, uint1
 }
 
 // ---------- ajustes de la fork ----------
-static void drawGearIcon(int cx, int cy, uint16_t col, int r = 10) {
-  for (int i = 0; i < 8; i++) {
-    float a = i * (float)(PI / 4.0);
-    int x1 = cx + (int)(cosf(a) * (r - 1));
-    int y1 = cy + (int)(sinf(a) * (r - 1));
-    int x2 = cx + (int)(cosf(a) * (r + 5));
-    int y2 = cy + (int)(sinf(a) * (r + 5));
-    gfx->drawLine(x1, y1, x2, y2, col);
-  }
-  gfx->drawCircle(cx, cy, r + 2, col);
-  gfx->fillCircle(cx, cy, 4, gNight ? UI_BG_NIGHT : UI_BG_DAY);
-}
-
 static void drawSunIcon(int cx, int cy, uint16_t col) {
   gfx->fillCircle(cx, cy, 10, col);
   for (int i = 0; i < 8; i++) {
@@ -1550,12 +1519,6 @@ static void drawBackIcon(int cx, int cy, uint16_t col) {
   gfx->drawLine(cx - 10, cy, cx, cy + 10, col);
 }
 
-void drawSettingsGear() {
-  gfx->fillCircle(406, 122, 27, UI_WHITE);
-  gfx->drawCircle(406, 122, 27, inkColor());
-  drawGearIcon(406, 122, inkColor(), 9);
-}
-
 static void drawSettingButton(int x, int y, const char *label) {
   gfx->fillRoundRect(x, y, 62, 52, 12, UI_WHITE);
   gfx->drawRoundRect(x, y, 62, 52, 12, UI_INK);
@@ -1563,92 +1526,6 @@ static void drawSettingButton(int x, int y, const char *label) {
   setSize(4);
   setCur(x + 23, y + 9);
   printT(label);
-}
-
-void renderSettings() {
-  gfx->fillScreen(RGB565_BLACK);
-  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
-  gfx->setTextColor(UI_INK);
-  setSize(3);
-  setCur(centerX("SETTINGS", 3), 40);
-  printT("SETTINGS");
-
-  // Helligkeit
-  drawSunIcon(90, 120, UI_INK);
-  char b[8];
-  snprintf(b, sizeof(b), "%u%%", userBrightness);
-  setSize(4);
-  gfx->setTextColor(UI_INK);
-  setCur(151, 107);
-  printT(b);
-  drawSettingButton(258, 94, "-");
-  drawSettingButton(332, 94, "+");
-
-  // Lautstärke
-  drawSpeakerIcon(90, 214, UI_INK);
-  char v[8];
-  snprintf(v, sizeof(v), "%u%%", audioVolume());
-  setSize(4);
-  setCur(151, 201);
-  printT(v);
-  drawSettingButton(258, 188, "-");
-  drawSettingButton(332, 188, "+");
-
-  // Versionen bewusst getrennt: Original bleibt als Referenz sichtbar.
-  gfx->setTextColor(UI_TRACK);
-  setSize(2);
-  char ov[32], fv[32];
-  snprintf(ov, sizeof(ov), "Original  %s", ORIGINAL_VERSION);
-  snprintf(fv, sizeof(fv), "Fork      %s", FORK_VERSION);
-  setCur(centerX(ov, 2), 292);
-  printT(ov);
-  setCur(centerX(fv, 2), 320);
-  printT(fv);
-
-  // Zurueck
-  gfx->fillRoundRect(133, 365, 200, 50, 14, UI_BAR_OK);
-  drawBackIcon(CX, 390, UI_BG_DAY);
-  gfx->flush();
-}
-
-void settingsTap(int16_t x, int16_t y) {
-  if (y >= 94 && y <= 146) {
-    if (x >= 258 && x < 320) {
-      userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
-      saveUserBrightness();
-      lastInteract = millis();
-      updateBrightness(millis());
-      sfxPlay(SFX_TAP);
-      return;
-    }
-    if (x >= 332 && x < 394) {
-      userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
-      saveUserBrightness();
-      lastInteract = millis();
-      updateBrightness(millis());
-      sfxPlay(SFX_TAP);
-      return;
-    }
-  }
-  if (y >= 188 && y <= 240) {
-    if (x >= 258 && x < 320) {
-      uint8_t v = audioVolume();
-      audioSetVolume(v <= 10 ? 10 : v - 10);
-      sfxPlay(SFX_TAP);
-      return;
-    }
-    if (x >= 332 && x < 394) {
-      uint8_t v = audioVolume();
-      audioSetVolume(v >= 100 ? 100 : v + 10);
-      sfxPlay(SFX_TAP);
-      return;
-    }
-  }
-  if (y >= 365 && y <= 415 && x >= 133 && x <= 333) {
-    settingsOpen = false;
-    lastInteract = millis();
-    return;
-  }
 }
 
 // ---------- ajuste de hora en pantalla (deslizar abajo) ----------
@@ -1691,88 +1568,136 @@ void renderClock() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX(T(S_SET_TIME), 3), 44);
+  setCur(centerX(T(S_SET_TIME), 3), 30);
   printT(T(S_SET_TIME));
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
-  setSize(7);
-  setCur(CX - 105, 108);
+  setSize(6);
+  setCur(CX - 90, 78);
   printT(t);
 
-  drawClockBtn(104, 190, "-");  // hora -
-  drawClockBtn(170, 190, "+");  // hora +
-  drawClockBtn(252, 190, "-");  // min -
-  drawClockBtn(318, 190, "+");  // min +
+  drawClockBtn(104, 145, "-");
+  drawClockBtn(170, 145, "+");
+  drawClockBtn(252, 145, "-");
+  drawClockBtn(318, 145, "+");
   setSize(2);
   gfx->setTextColor(UI_TRACK);
-  setCur(120, 256);
+  setCur(120, 211);
   printT(T(S_HOUR));
-  setCur(276, 256);
+  setCur(276, 211);
   printT(T(S_MIN));
 
-  // interruptor de sonido (izquierda de la fila de idioma)
+  // Fork-Einstellungen direkt in dieser vorhandenen Einstellungsseite.
+  drawSunIcon(74, 264, UI_INK);
+  char b[8];
+  snprintf(b, sizeof(b), "%u%%", userBrightness);
+  setSize(3);
+  gfx->setTextColor(UI_INK);
+  setCur(130, 253);
+  printT(b);
+  drawSettingButton(214, 238, "-");
+  drawSettingButton(290, 238, "+");
+
+  drawSpeakerIcon(74, 320, UI_INK);
+  char v[8];
+  snprintf(v, sizeof(v), "%u%%", audioVolume());
+  setSize(3);
+  gfx->setTextColor(UI_INK);
+  setCur(130, 309);
+  printT(v);
+  drawSettingButton(214, 294, "-");
+  drawSettingButton(290, 294, "+");
+
+  // Sound + Sprache bleiben ebenfalls auf derselben Seite.
   bool snd = audioEnabled();
   const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
-  gfx->fillRoundRect(34, LANG_PILL_Y, 96, LANG_PILL_H, 8, snd ? UI_BAR_OK : UI_WHITE);
-  gfx->drawRoundRect(34, LANG_PILL_Y, 96, LANG_PILL_H, 8, UI_INK);
+  gfx->fillRoundRect(34, 358, 96, 28, 8, snd ? UI_BAR_OK : UI_WHITE);
+  gfx->drawRoundRect(34, 358, 96, 28, 8, UI_INK);
   gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
   setSize(2);
-  setCur(34 + (96 - textW(sl, 2)) / 2, LANG_PILL_Y + 8);
+  setCur(34 + (96 - textW(sl, 2)) / 2, 365);
   printT(sl);
 
-  // selector de idioma: una pildora que cicla los 6 idiomas al tocar
-  gfx->fillRoundRect(LANG_PILL_X, LANG_PILL_Y, LANG_PILL_W, LANG_PILL_H, 8, UI_WHITE);
-  gfx->drawRoundRect(LANG_PILL_X, LANG_PILL_Y, LANG_PILL_W, LANG_PILL_H, 8, UI_INK);
+  gfx->fillRoundRect(LANG_PILL_X, 358, LANG_PILL_W, 28, 8, UI_WHITE);
+  gfx->drawRoundRect(LANG_PILL_X, 358, LANG_PILL_W, 28, 8, UI_INK);
   char lp[10];
   snprintf(lp, sizeof(lp), "%s >", LANG_CODES[gLang]);
   gfx->setTextColor(UI_INK);
   setSize(2);
-  setCur(LANG_PILL_X + (LANG_PILL_W - textW(lp, 2)) / 2, LANG_PILL_Y + 8);
+  setCur(LANG_PILL_X + (LANG_PILL_W - textW(lp, 2)) / 2, 365);
   printT(lp);
 
-  gfx->fillRoundRect(133, 340, 200, 48, 14, UI_BAR_OK);
+  gfx->fillRoundRect(133, 392, 200, 42, 14, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(CX - 18, 352);
+  setCur(CX - 18, 402);
   printT("OK");
 
   gfx->setTextColor(UI_TRACK);
-  setSize(2);
-  setCur(centerX(T(S_CLOCK_CANCEL), 2), 410);
-  printT(T(S_CLOCK_CANCEL));
-
-  // version del firmware (discreta, abajo del todo)
-  char ver[20];
-  snprintf(ver, sizeof(ver), "TamaPoke v%s", FW_VERSION);
   setSize(1);
-  setCur(centerX(ver, 1), 436);
-  printT(ver);
+  setCur(centerX("TamaPoke v1.17", 1), 444);
+  printT("TamaPoke v1.17");
   gfx->flush();
 }
 
 void clockTap(int16_t x, int16_t y) {
-  if (y >= 190 && y <= 248) {  // fila de botones +/-
+  if (y >= 145 && y <= 203) {
     if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
     else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
     else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
     else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
     return;
   }
-  if (y >= LANG_PILL_Y && y <= LANG_PILL_Y + LANG_PILL_H) {
-    if (x >= 34 && x < 130) {                  // interruptor de sonido
-      audioSetEnabled(!audioEnabled());
-      if (audioEnabled()) sfxPlay(SFX_TAP);    // confirma al encender
+  if (y >= 238 && y <= 290) {
+    if (x >= 214 && x < 276) {
+      userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
+      saveUserBrightness();
+      lastInteract = millis();
+      updateBrightness(millis());
+      sfxPlay(SFX_TAP);
       return;
     }
-    if (x >= LANG_PILL_X && x < LANG_PILL_X + LANG_PILL_W) {  // cicla idioma
-      setLang((Lang)((gLang + 1) % LANG_COUNT));
-      applyLangFont();  // la fuente cambia con el idioma
+    if (x >= 290 && x < 352) {
+      userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
+      saveUserBrightness();
+      lastInteract = millis();
+      updateBrightness(millis());
       sfxPlay(SFX_TAP);
       return;
     }
   }
-  if (y >= 340 && y <= 388 && x >= 133 && x <= 333) { applyClock(); return; }
+  if (y >= 294 && y <= 346) {
+    if (x >= 214 && x < 276) {
+      uint8_t v = audioVolume();
+      audioSetVolume(v <= 10 ? 10 : v - 10);
+      sfxPlay(SFX_TAP);
+      return;
+    }
+    if (x >= 290 && x < 352) {
+      uint8_t v = audioVolume();
+      audioSetVolume(v >= 100 ? 100 : v + 10);
+      sfxPlay(SFX_TAP);
+      return;
+    }
+  }
+  if (y >= 358 && y <= 386) {
+    if (x >= 34 && x < 130) {
+      audioSetEnabled(!audioEnabled());
+      if (audioEnabled()) sfxPlay(SFX_TAP);
+      return;
+    }
+    if (x >= LANG_PILL_X && x < LANG_PILL_X + LANG_PILL_W) {
+      setLang((Lang)((gLang + 1) % LANG_COUNT));
+      applyLangFont();
+      sfxPlay(SFX_TAP);
+      return;
+    }
+  }
+  if (y >= 392 && y <= 434 && x >= 133 && x <= 333) {
+    applyClock();
+    return;
+  }
 }
 
 // llama + numero de racha arriba a la izquierda
