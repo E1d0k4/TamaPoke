@@ -5,12 +5,14 @@
 
 #include <Arduino.h>
 
-// Easter-Egg-Erkennung
-void tamaDashResetEasterEgg();
-bool tamaDashHandleSunTap(int16_t x, int16_t y);
+// --- Easter-Egg-Erkennung ---------------------------------------------------
 
-// Spiel
-// Die bestehende TamaPoke-Integration fragt diese Funktion als Aktiv-Status ab.
-bool tamaDashOpen();
-bool tamaDashTap(int16_t x, int16_t y);
-void tamaDashRender();
+void tamaDashResetEasterEgg();                       // Zaehler zuruecksetzen
+bool tamaDashHandleSunTap(int16_t x, int16_t y);     // true = Sonnen-Touch wurde verarbeitet
+
+// --- Spiel ------------------------------------------------------------------
+
+void tamaDashOpen();                                 // Spiel starten
+void tamaDashTap(int16_t x, int16_t y);              // EIN Aufruf pro neuem Touch-Down
+bool tamaDashRender();                               // false = Spiel beendet -> zur alten Seite zurueck
+bool tamaDashActive();                                // true = Tama Dash laeuft
