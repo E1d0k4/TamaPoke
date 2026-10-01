@@ -1,15 +1,16 @@
+// TamaDash.h - verstecktes Endless-Runner-Easter-Egg fuer TamaPoke
+// Vollstaendig gekapselt: keine Abhaengigkeit zur Pet-/Spiel-Logik.
+
 #pragma once
-#include <stdint.h>
 
-// Verstecktes, vom Hauptspiel getrenntes Mini-Spiel.
-bool tamaDashOpen();
+#include <Arduino.h>
+
+// Easter-Egg-Erkennung
 void tamaDashResetEasterEgg();
-
-// Wird nur auf der bestehenden Helligkeitsseite aufgerufen.
-// Liefert true, wenn der Tap vom Easter Egg verarbeitet wurde.
 bool tamaDashHandleSunTap(int16_t x, int16_t y);
 
-// true = Tama Dash wurde verlassen; der Aufrufer kann zur Startseite zurueckkehren.
+// Spiel
+// Die bestehende TamaPoke-Integration fragt diese Funktion als Aktiv-Status ab.
+bool tamaDashOpen();
 bool tamaDashTap(int16_t x, int16_t y);
-
 void tamaDashRender();
