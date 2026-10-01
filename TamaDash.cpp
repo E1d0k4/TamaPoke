@@ -1,401 +1,708 @@
+// TamaDash.cpp - "Tama Dash": Fuchs-Endless-Runner auf einem kleinen Planeten
+//
+// Grafische Grundlage: gekrümmte Planetenoberflaeche + lokales Koordinatensystem,
+// damit Wald, Fuchs und Hindernisse der Weltkrümmung folgen.
+
 #include "TamaDash.h"
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include <math.h>
 #include "Arduino_GFX_Library.h"
 #include "audio.h"
 
 extern Arduino_Canvas *gfx;
 
 namespace {
-constexpr int16_t CX = 233;
-constexpr int16_t CY = 233;
-constexpr int16_t GROUND_CENTER_Y = 350;
-constexpr int16_t GROUND_CURVE = 1600;
-constexpr int16_t PLAYER_X = 112;
-constexpr int16_t PLAYER_W = 34;
-constexpr int16_t PLAYER_H = 46;
-constexpr int16_t BACK_X0 = 188;
-constexpr int16_t BACK_X1 = 278;
-constexpr int16_t BACK_Y1 = 76;
-constexpr uint32_t EASTER_TAP_GAP_MS = 1500;
 
-bool gOpen = false;
-bool gGameOver = false;
-uint8_t gEggTaps = 0;
-uint32_t gLastEggTap = 0;
+enum State : uint8_t { ST_RUNNING, ST_JUMPING, ST_GAMEOVER, ST_EXIT };
+enum ObType : uint8_t { OB_NONE, OB_BUSH, OB_BRANCH };
 
-float gPlayerY = 0;
-float gPlayerVY = 0;
-float gObstacleX = 520;
-uint16_t gScore = 0;
-uint16_t gBest = 0;
-uint32_t gRunStart = 0;
-uint32_t gLastStep = 0;
+struct Obstacle {
+  ObType type;
+  float x;
+};
 
-uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
-  return (uint16_t)((((r >> 3) << 11)) | (((g >> 2) << 5)) | (b >> 3));
+static constexpr int MAXOB = 4;
+static constexpr float GRAV = 2700.0f;
+static constexpr float JUMP_V = 820.0f;
+static constexpr float FASTFALL = 1500.0f;
+
+static Arduino_Canvas *g = nullptr;
+static Preferences prefs;
+
+static bool active = false;
+static State st = ST_RUNNING;
+
+static float W = 466.0f;
+static float H = 466.0f;
+static float sc = 1.0f;
+static float cx = 233.0f;
+static float R = 700.0f;
+static float G = 300.0f;
+static float foxX = 140.0f;
+
+static float dist = 0.0f;
+static float speed = 0.0f;
+static float runTime = 0.0f;
+static float jumpH = 0.0f;
+static float jumpV = 0.0f;
+static float nextGap = 0.0f;
+
+static bool fastFell = false;
+static bool newBest = false;
+
+static uint32_t lastMs = 0;
+static uint32_t overMs = 0;
+static uint32_t lastTapMs = 0;
+static uint32_t score = 0;
+static uint32_t best = 0;
+static uint32_t rngS = 2463534242u;
+
+static Obstacle obs[MAXOB];
+
+static uint8_t sunTaps = 0;
+static uint32_t lastSunTapMs = 0;
+
+static constexpr uint8_t TD_SUN_TAPS = 5;
+static constexpr uint32_t TD_SUN_MAX_GAP_MS = 1000;
+
+static inline uint16_t rgb(uint8_t r, uint8_t gg, uint8_t b) {
+  return (uint16_t)(((r & 0xF8) << 8) | ((gg & 0xFC) << 3) | (b >> 3));
 }
 
-void loadBest() {
-  Preferences p;
-  p.begin("tamadash", true);
-  gBest = p.getUShort("best", 0);
-  p.end();
+static uint32_t rnd() {
+  rngS ^= rngS << 13;
+  rngS ^= rngS >> 17;
+  rngS ^= rngS << 5;
+  return rngS;
 }
 
-void saveBest() {
-  Preferences p;
-  p.begin("tamadash", false);
-  p.putUShort("best", gBest);
-  p.end();
+static float frand() {
+  return (rnd() & 0xFFFF) / 65535.0f;
 }
 
-int16_t groundYAt(int16_t x) {
-  const float dx = (float)x - CX;
-  return (int16_t)(GROUND_CENTER_Y + (dx * dx) / GROUND_CURVE);
+static uint32_t hash32(uint32_t x) {
+  x ^= x >> 16;
+  x *= 0x7feb352d;
+  x ^= x >> 15;
+  x *= 0x846ca68b;
+  x ^= x >> 16;
+  return x;
 }
 
-void resetRun() {
-  gGameOver = false;
-  gScore = 0;
-  gPlayerY = groundYAt(PLAYER_X);
-  gPlayerVY = 0;
-  gObstacleX = 520 + random(0, 90);
-  gRunStart = millis();
-  gLastStep = gRunStart;
+static inline int ri(float v) {
+  return (int)lroundf(v);
 }
 
-bool onGround() {
-  return gPlayerY >= groundYAt(PLAYER_X);
+// Leichte Parabel als Kugel-Naeherung.
+static float groundY(float x) {
+  float d = x - cx;
+  return G + d * d / (2.0f * R);
 }
 
-void jump() {
-  if (gGameOver) {
-    resetRun();
+// Lokales Koordinatensystem auf der Planetenoberflaeche.
+// lx = Tangente, ly = "hoch" entlang der Oberflaechennormalen.
+struct Frame {
+  float bx;
+  float by;
+  float c;
+  float s;
+  float k;
+};
+
+static Frame frameAt(float x, float yOff, float k) {
+  float d = x - cx;
+  float n = sqrtf(R * R + d * d);
+  Frame f;
+  f.bx = x;
+  f.by = groundY(x) + yOff;
+  f.c = R / n;
+  f.s = d / n;
+  f.k = k;
+  return f;
+}
+
+static void P(const Frame &f, float lx, float ly, int &ox, int &oy) {
+  ox = ri(f.bx + (lx * f.c + ly * f.s) * f.k);
+  oy = ri(f.by + (lx * f.s - ly * f.c) * f.k);
+}
+
+static void tri(const Frame &f, float x0, float y0, float x1, float y1,
+                float x2, float y2, uint16_t col) {
+  int ax, ay, bx, by, cx2, cy;
+  P(f, x0, y0, ax, ay);
+  P(f, x1, y1, bx, by);
+  P(f, x2, y2, cx2, cy);
+  g->fillTriangle(ax, ay, bx, by, cx2, cy, col);
+}
+
+static void quad(const Frame &f, float x0, float y0, float x1, float y1,
+                 float x2, float y2, float x3, float y3, uint16_t col) {
+  tri(f, x0, y0, x1, y1, x2, y2, col);
+  tri(f, x0, y0, x2, y2, x3, y3, col);
+}
+
+static void circ(const Frame &f, float lx, float ly, float r, uint16_t col) {
+  int x, y;
+  P(f, lx, ly, x, y);
+  int rr = ri(r * f.k);
+  if (rr < 1) rr = 1;
+  g->fillCircle(x, y, rr, col);
+}
+
+static void limb(const Frame &f, float x0, float y0, float x1, float y1,
+                 float w, uint16_t col) {
+  float dx = x1 - x0;
+  float dy = y1 - y0;
+  float len = sqrtf(dx * dx + dy * dy);
+  if (len < 0.01f) return;
+  float nx = -dy / len * w * 0.5f;
+  float ny = dx / len * w * 0.5f;
+  quad(f, x0 + nx, y0 + ny, x0 - nx, y0 - ny,
+       x1 - nx, y1 - ny, x1 + nx, y1 + ny, col);
+}
+
+static void loadBest() {
+  prefs.begin("tamadash", true);
+  best = prefs.getUInt("best", 0);
+  prefs.end();
+}
+
+static void saveBest() {
+  prefs.begin("tamadash", false);
+  prefs.putUInt("best", best);
+  prefs.end();
+}
+
+static void resetRun() {
+  for (int i = 0; i < MAXOB; ++i) obs[i].type = OB_NONE;
+
+  dist = 0;
+  runTime = 0;
+  jumpH = 0;
+  jumpV = 0;
+  fastFell = false;
+  newBest = false;
+  score = 0;
+
+  speed = 240.0f * sc;
+  nextGap = 320.0f * sc;
+  st = ST_RUNNING;
+  overMs = 0;
+}
+
+static void jump() {
+  if (st == ST_GAMEOVER) {
+    if (millis() - overMs > 700) resetRun();
     return;
   }
 
-  if (onGround()) {
-    gPlayerVY = -13.0f;
+  if (st == ST_RUNNING) {
+    jumpV = JUMP_V * sc;
+    st = ST_JUMPING;
+    fastFell = false;
     sfxPlay(SFX_PLAY);
     return;
   }
 
-  // Zweiter Tap waehrend des Sprungs: sofortiger Fast-Fall.
-  // Dadurch fuehlt sich die Steuerung direkter und arcade-artiger an.
-  gPlayerVY = 11.0f;
+  if (st == ST_JUMPING && !fastFell) {
+    jumpV = -FASTFALL * sc;
+    fastFell = true;
+  }
 }
 
-bool hitObstacle() {
-  const float playerLeft = PLAYER_X - PLAYER_W / 2.0f;
-  const float playerRight = PLAYER_X + PLAYER_W / 2.0f;
-  const float playerTop = gPlayerY - PLAYER_H;
-  const float playerBottom = gPlayerY;
+static void spawn() {
+  int idx = -1;
+  for (int i = 0; i < MAXOB; ++i) {
+    if (obs[i].type == OB_NONE) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx < 0) return;
 
-  const float obstacleLeft = gObstacleX - 15.0f;
-  const float obstacleRight = gObstacleX + 15.0f;
-  const float obstacleGround = groundYAt((int16_t)gObstacleX);
-  const float obstacleTop = obstacleGround - 54.0f;
-
-  return playerRight > obstacleLeft && playerLeft < obstacleRight &&
-         playerBottom > obstacleTop && playerTop < obstacleGround;
+  // Erst nach kurzer Eingewoehnung kommen die niedrigen Aeste.
+  ObType type = (score >= 15 && frand() < 0.40f) ? OB_BRANCH : OB_BUSH;
+  obs[idx].type = type;
+  obs[idx].x = W + (type == OB_BRANCH ? 140.0f : 40.0f) * sc;
+  nextGap = speed * (0.95f + frand() * 0.80f)
+          + (type == OB_BRANCH ? 120.0f : 50.0f) * sc;
 }
 
-void step() {
-  uint32_t now = millis();
-  float dt = gLastStep ? (now - gLastStep) / 16.0f : 1.0f;
-  if (dt > 3.0f) dt = 3.0f;
-  if (dt < 0.0f) dt = 0.0f;
-  gLastStep = now;
+static bool collides() {
+  float left = foxX - 12.0f * sc;
+  float right = foxX + 24.0f * sc;
+  float bottom = jumpH;
+  float top = jumpH + 44.0f * sc;
 
-  gPlayerVY += 0.72f * dt;
-  gPlayerY += gPlayerVY * dt;
-  const float playerGround = groundYAt(PLAYER_X);
-  if (gPlayerY >= playerGround) {
-    gPlayerY = playerGround;
-    gPlayerVY = 0;
+  for (int i = 0; i < MAXOB; ++i) {
+    if (obs[i].type == OB_BUSH) {
+      if (right > obs[i].x - 18.0f * sc &&
+          left < obs[i].x + 18.0f * sc &&
+          bottom < 24.0f * sc) {
+        return true;
+      }
+    } else if (obs[i].type == OB_BRANCH) {
+      // Ast + Blaetter blockieren den Sprungbereich.
+      // Am Boden ist der Fuchs niedrig genug, um darunter hindurchzulaufen.
+      if (right > obs[i].x - 90.0f * sc &&
+          left < obs[i].x + 8.0f * sc &&
+          top > 58.0f * sc) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void gameOver() {
+  st = ST_GAMEOVER;
+  overMs = millis();
+
+  if (score > best) {
+    best = score;
+    newBest = true;
+    saveBest();
+    sfxPlay(SFX_MEDAL);
+  } else {
+    sfxPlay(SFX_LEVEL);
+  }
+}
+
+static void update(float dt) {
+  if (st == ST_GAMEOVER || st == ST_EXIT) return;
+
+  runTime += dt;
+  speed = fminf(240.0f + 5.0f * runTime, 480.0f) * sc;
+  dist += speed * dt;
+  score = (uint32_t)(dist / (10.0f * sc));
+
+  if (st == ST_JUMPING) {
+    jumpV -= GRAV * sc * dt;
+    jumpH += jumpV * dt;
+
+    if (jumpH <= 0) {
+      jumpH = 0;
+      jumpV = 0;
+      st = ST_RUNNING;
+      fastFell = false;
+    }
   }
 
-  float speed = 5.0f + gScore * 0.035f;
-  if (speed > 9.0f) speed = 9.0f;
-  gObstacleX -= speed * dt;
-
-  gScore = (uint16_t)((now - gRunStart) / 100);
-  if (gObstacleX < -40) {
-    gObstacleX = 500 + random(0, 130);
+  for (int i = 0; i < MAXOB; ++i) {
+    if (obs[i].type == OB_NONE) continue;
+    obs[i].x -= speed * dt;
+    if (obs[i].x < -160.0f * sc) obs[i].type = OB_NONE;
   }
 
-  if (hitObstacle()) {
-    gGameOver = true;
-    if (gScore > gBest) {
-      gBest = gScore;
-      saveBest();
-      sfxPlay(SFX_MEDAL);
+  nextGap -= speed * dt;
+  if (nextGap <= 0) spawn();
+
+  if (collides()) gameOver();
+}
+
+static void drawSky() {
+  const uint8_t t0[3] = {110, 185, 235};
+  const uint8_t t1[3] = {210, 238, 225};
+  const int bands = 10;
+  int hh = ri(G + 40.0f * sc);
+
+  for (int i = 0; i < bands; ++i) {
+    float u = (float)i / (bands - 1);
+    uint16_t col = rgb(
+      (uint8_t)(t0[0] + (t1[0] - t0[0]) * u),
+      (uint8_t)(t0[1] + (t1[1] - t0[1]) * u),
+      (uint8_t)(t0[2] + (t1[2] - t0[2]) * u)
+    );
+    int y0 = hh * i / bands;
+    int y1 = hh * (i + 1) / bands;
+    g->fillRect(0, y0, W, y1 - y0 + 1, col);
+  }
+}
+
+static void drawBand(float up, uint16_t col, uint16_t grass, uint16_t soil) {
+  int gh = ri(5.0f * sc);
+  if (gh < 3) gh = 3;
+
+  for (int x = 0; x < (int)W; x += 4) {
+    int y = ri(groundY(x + 2.0f) - up);
+    if (y >= (int)H) continue;
+    if (y < 0) y = 0;
+
+    g->fillRect(x, y, 4, (int)H - y, col);
+    g->fillRect(x, y, 4, gh, grass);
+
+    if (soil) {
+      int sy = y + ri(26.0f * sc);
+      if (sy < (int)H)
+        g->fillRect(x, sy, 4, (int)H - sy, soil);
+    }
+  }
+}
+
+static void drawTree(float x, float baseUp, float t, uint8_t kind,
+                     uint16_t trunkC, uint16_t c1, uint16_t c2) {
+  Frame f = frameAt(x, -baseUp, sc * t);
+
+  if (kind == 0) {
+    float th = 60.0f;
+    float w = 13.0f;
+    float r = 34.0f;
+
+    // Stamm und Krone teilen dasselbe gekruemmte Koordinatensystem.
+    quad(f, -w / 2, -6, w / 2, -6, w * 0.35f, th,
+         -w * 0.35f, th, trunkC);
+
+    circ(f, -r * 0.8f, th + r * 0.1f, r * 0.75f, c1);
+    circ(f,  r * 0.8f, th + r * 0.1f, r * 0.75f, c1);
+    circ(f, 0, th + r * 0.6f, r, c1);
+    circ(f, -r * 0.25f, th + r * 0.95f, r * 0.55f, c2);
+  } else {
+    float w = 10.0f;
+    quad(f, -w / 2, -6, w / 2, -6, w * 0.4f, 45,
+         -w * 0.4f, 45, trunkC);
+
+    tri(f, -36, 28, 36, 28, 0, 82, c1);
+    tri(f, -29, 58, 29, 58, 0, 112, c1);
+    tri(f, -21, 88, 21, 88, 0, 138, c2);
+  }
+}
+
+static void drawLayer(float factor, float cell, float baseUp,
+                      float tmin, float tmax, int skipPct,
+                      uint16_t trunkC, uint16_t c1, uint16_t c2,
+                      uint32_t seed) {
+  float off = dist * factor;
+  float margin = 120.0f * sc;
+
+  int i0 = (int)floorf((off - margin) / cell);
+  int i1 = (int)floorf((off + W + margin) / cell);
+
+  for (int i = i0; i <= i1; ++i) {
+    uint32_t h = hash32((uint32_t)i * 0x9E3779B1u + seed);
+    if ((int)(h % 100) < skipPct) continue;
+
+    float wx = i * cell +
+               ((h >> 8) & 0xFF) / 255.0f * cell * 0.9f;
+    float t = tmin +
+              ((h >> 16) & 0xFF) / 255.0f * (tmax - tmin);
+    uint8_t kind = ((h >> 24) & 3) == 0 ? 1 : 0;
+
+    drawTree(wx - off, baseUp, t, kind, trunkC, c1, c2);
+  }
+}
+
+static void drawBush(float x) {
+  Frame f = frameAt(x, 2.0f * sc, sc);
+  uint16_t dk = rgb(35, 105, 50);
+  uint16_t md = rgb(55, 145, 65);
+  uint16_t bl = rgb(225, 40, 65);
+  uint16_t br = rgb(105, 66, 38);
+
+  circ(f, -14, 10, 13, dk);
+  circ(f,  14, 10, 13, dk);
+  circ(f, 0, 15, 15, md);
+  circ(f, -8, 20, 9, md);
+  circ(f, 9, 20, 9, md);
+
+  quad(f, -18, 4, 18, 4, 17, -4, -17, -4, br);
+
+  circ(f, -10, 14, 3, bl);
+  circ(f, 3, 23, 3, bl);
+  circ(f, 14, 13, 3, bl);
+  circ(f, -1, 9, 3, bl);
+  circ(f, 9, 20, 2.5f, bl);
+}
+
+static void drawBranchTree(float tx) {
+  Frame f = frameAt(tx, 4.0f * sc, sc);
+  uint16_t tr = rgb(105, 66, 38);
+  uint16_t c1 = rgb(40, 120, 55);
+  uint16_t c2 = rgb(75, 165, 75);
+
+  // Stamm kommt aus dem Boden und bleibt in derselben Oberflaechenrichtung.
+  quad(f, -9, -6, 9, -6, 7, 150, -7, 150, tr);
+
+  // Der Ast haengt tief genug in den Laufweg.
+  quad(f, -4, 78, -4, 62, -92, 66, -92, 74, tr);
+
+  circ(f, 0, 160, 38, c1);
+  circ(f, -26, 148, 28, c1);
+  circ(f, 26, 148, 28, c1);
+
+  circ(f, -86, 70, 12, c1);
+  circ(f, -80, 80, 18, c1);
+  circ(f, -55, 92, 30, c1);
+  circ(f, -25, 100, 34, c1);
+  circ(f, -40, 108, 20, c2);
+}
+
+static void drawFox() {
+  Frame f = frameAt(foxX, -jumpH, sc * 0.8f);
+
+  uint16_t org = rgb(242, 128, 42);
+  uint16_t dko = rgb(200, 92, 25);
+  uint16_t cre = rgb(255, 242, 218);
+  uint16_t brn = rgb(62, 36, 26);
+
+  float ph = runTime * 14.0f;
+  float wag = sinf(runTime * 9.0f) * 4.0f;
+  bool air = jumpH > 0.5f;
+
+  auto leg = [&](float hx, float off, uint16_t col) {
+    float fxo;
+    float fyo;
+
+    if (air) {
+      fxo = hx + (hx > 0 ? 11 : -11);
+      fyo = 5;
     } else {
-      sfxPlay(SFX_LEVEL);
+      fxo = hx + sinf(ph + off) * 9;
+      fyo = fmaxf(0.0f, -cosf(ph + off)) * 6;
     }
-  }
+
+    limb(f, hx, 17, fxo, fyo + 3, 5.5f, col);
+    circ(f, fxo, fyo + 3, 3.3f, brn);
+  };
+
+  // Langer, klarer buschiger Schwanz nach hinten.
+  tri(f, -10, 31, -10, 14, -52, 36 + wag, org);
+  circ(f, -28, 26, 10, org);
+  circ(f, -40, 31 + wag * 0.5f, 10.5f, org);
+  circ(f, -52, 36 + wag, 8.5f, cre);
+
+  leg(-9, 3.14159f, dko);
+  leg(13, 0, dko);
+
+  circ(f, -10, 24, 10.5f, org);
+  circ(f, 10, 24, 10.5f, org);
+  quad(f, -10, 13.5f, 10, 13.5f, 10, 34.5f, -10, 34.5f, org);
+  circ(f, 13, 25, 6, cre);
+
+  circ(f, 22, 38, 12, org);
+  tri(f, 28, 45, 30, 30, 43, 36, org);
+  tri(f, 23, 30, 32, 27, 41, 34, cre);
+  circ(f, 43, 36, 2.8f, brn);
+
+  tri(f, 11, 46, 13, 67, 24, 50, org);
+  tri(f, 19, 49, 29, 68, 32, 46, org);
+  tri(f, 14, 49, 15, 60, 21, 51, brn);
+  tri(f, 23, 51, 28, 61, 29, 48, brn);
+
+  circ(f, 26, 41, 3.4f, brn);
+  circ(f, 27, 42.3f, 1.2f, cre);
+
+  leg(-13, 0, brn);
+  leg(10, 3.14159f, brn);
 }
 
-void drawBackArrow() {
-  uint16_t ink = rgb565(24, 28, 38);
-  gfx->drawLine(CX + 13, 34, CX - 12, 34, ink);
-  gfx->drawLine(CX - 12, 34, CX - 2, 24, ink);
-  gfx->drawLine(CX - 12, 34, CX - 2, 44, ink);
+static void textCentered(const char *s, float cxx, float y,
+                         uint8_t size, uint16_t col) {
+  int w = (int)strlen(s) * 6 * size;
+  g->setTextSize(size);
+  g->setTextColor(col);
+  g->setCursor(ri(cxx - w / 2.0f), ri(y));
+  g->print(s);
 }
 
-void drawPlayer() {
-  uint16_t ink = rgb565(24, 28, 38);
-  uint16_t fur = rgb565(204, 132, 72);
-  uint16_t furDark = rgb565(170, 98, 52);
-  uint16_t cream = rgb565(248, 222, 177);
-  uint16_t ear = rgb565(235, 151, 91);
-  int x = PLAYER_X;
-  int bottom = (int)gPlayerY;
+static void drawBackArrow() {
+  int x = ri(cx);
+  int y = ri(30.0f * sc);
+  int r = ri(17.0f * sc);
+  uint16_t bg = rgb(25, 45, 35);
 
-  // Kleiner Fuchs mit klarer Schnauze, Ohren und langem buschigem Schwanz.
-  gfx->fillCircle(x - 25, bottom - 21, 13, fur);
-  gfx->fillCircle(x - 34, bottom - 21, 8, cream);
-  gfx->drawCircle(x - 25, bottom - 21, 13, ink);
-  gfx->drawCircle(x - 34, bottom - 21, 8, ink);
-
-  gfx->fillRoundRect(x - 11, bottom - 34, 30, 27, 10, fur);
-  gfx->drawRoundRect(x - 11, bottom - 34, 30, 27, 10, ink);
-
-  gfx->fillTriangle(x - 8, bottom - 31, x - 5, bottom - 49,
-                    x + 3, bottom - 32, fur);
-  gfx->fillTriangle(x + 6, bottom - 31, x + 13, bottom - 49,
-                    x + 18, bottom - 29, fur);
-  gfx->fillTriangle(x - 5, bottom - 34, x - 5, bottom - 43,
-                    x + 0, bottom - 34, ear);
-  gfx->fillTriangle(x + 9, bottom - 34, x + 13, bottom - 43,
-                    x + 16, bottom - 31, ear);
-
-  gfx->fillCircle(x + 14, bottom - 20, 8, cream);
-  gfx->fillCircle(x + 20, bottom - 20, 3, ink);
-  gfx->fillCircle(x + 7, bottom - 27, 2, ink);
-  gfx->drawFastHLine(x + 11, bottom - 16, 7, furDark);
-
-  gfx->fillRoundRect(x - 5, bottom - 15, 14, 10, 5, cream);
-
-  int phase = ((millis() / 110) & 1) ? 3 : -3;
-  gfx->fillRoundRect(x - 9 + phase, bottom - 8, 7, 8, 3, furDark);
-  gfx->fillRoundRect(x + 5 - phase, bottom - 8, 7, 8, 3, furDark);
+  g->fillCircle(x, y, r, bg);
+  g->fillRect(x - ri(8 * sc), y - ri(1.5f * sc),
+              ri(18 * sc), ri(3 * sc) + 1, WHITE);
+  g->fillTriangle(x - ri(10 * sc), y,
+                  x - ri(2 * sc), y - ri(8 * sc),
+                  x - ri(2 * sc), y + ri(8 * sc), WHITE);
 }
 
-void drawObstacle() {
-  uint16_t ink = rgb565(24, 28, 38);
-  uint16_t trunk = rgb565(117, 82, 54);
-  uint16_t leaf = rgb565(72, 145, 82);
-  uint16_t berry = rgb565(191, 62, 76);
+static void drawHud() {
+  drawBackArrow();
 
-  int x = (int)gObstacleX;
-  int base = groundYAt((int16_t)gObstacleX);
+  uint8_t ts = (W >= 400) ? 3 : 2;
+  char buf[24];
 
-  // Beerenbusch: niedrig und breit, damit der Spieler darueber springen kann.
-  gfx->fillCircle(x - 15, base - 13, 12, leaf);
-  gfx->fillCircle(x, base - 20, 16, leaf);
-  gfx->fillCircle(x + 15, base - 12, 12, leaf);
-  gfx->fillRoundRect(x - 19, base - 8, 38, 8, 4, trunk);
+  if (st != ST_GAMEOVER) {
+    snprintf(buf, sizeof(buf), "SCORE %04lu", (unsigned long)score);
+    int tw = (int)strlen(buf) * 6 * ts;
+    int th = 8 * ts;
+    int px = ri(cx) - tw / 2 - 12;
+    int py = ri(60 * sc);
 
-  gfx->fillCircle(x - 8, base - 19, 3, berry);
-  gfx->fillCircle(x + 6, base - 25, 3, berry);
-  gfx->fillCircle(x + 15, base - 12, 3, berry);
-  gfx->drawCircle(x - 15, base - 13, 12, ink);
-  gfx->drawCircle(x, base - 20, 16, ink);
-  gfx->drawCircle(x + 15, base - 12, 12, ink);
-  gfx->drawRoundRect(x - 19, base - 8, 38, 8, 4, ink);
+    g->fillRoundRect(px, py, tw + 24, th + 12, 10,
+                     rgb(25, 45, 35));
+    g->setTextSize(ts);
+    g->setTextColor(WHITE);
+    g->setCursor(px + 12, py + 6);
+    g->print(buf);
+    return;
+  }
+
+  int pw = ri(W * 0.66f);
+  int ph = ri(H * 0.46f);
+  int px = ri(cx) - pw / 2;
+  int py = ri(H * 0.20f);
+
+  g->fillRoundRect(px, py, pw, ph, 16, rgb(25, 45, 35));
+  g->drawRoundRect(px, py, pw, ph, 16, rgb(255, 190, 90));
+
+  float y = py + 16;
+  textCentered("GAME OVER", cx, y, ts + 1, rgb(255, 150, 60));
+  y += 8 * (ts + 1) + 14;
+
+  snprintf(buf, sizeof(buf), "SCORE: %04lu", (unsigned long)score);
+  textCentered(buf, cx, y, ts, WHITE);
+  y += 8 * ts + 8;
+
+  snprintf(buf, sizeof(buf), "BEST: %04lu", (unsigned long)best);
+  textCentered(buf, cx, y, ts, rgb(255, 225, 120));
+  y += 8 * ts + 8;
+
+  if (newBest) {
+    textCentered("NEW BEST!", cx, y, ts - 1, rgb(120, 230, 120));
+  }
+
+  y = py + ph - 8 * (ts - 1) - 14;
+  textCentered("TAP TO RETRY", cx, y, ts - 1, rgb(200, 220, 210));
 }
 
-void drawScene() {
-  uint16_t sky = rgb565(211, 231, 220);
-  uint16_t farTree = rgb565(91, 139, 86);
-  uint16_t tree = rgb565(57, 111, 63);
-  uint16_t treeDark = rgb565(43, 88, 50);
-  uint16_t trunk = rgb565(111, 73, 45);
-  uint16_t trunkDark = rgb565(82, 54, 37);
-  uint16_t soil = rgb565(126, 192, 127);
-  uint16_t grass = rgb565(74, 137, 74);
-  uint16_t ink = rgb565(24, 28, 38);
+static void draw() {
+  drawSky();
 
-  gfx->fillCircle(CX, CY, 231, sky);
+  // Mehrere Tiefenebenen erzeugen einen Wald statt einer regelmaessigen Allee.
+  drawBand(26 * sc, rgb(78, 138, 112), rgb(95, 155, 128), 0);
+  drawLayer(0.35f, 46 * sc, 26 * sc, 0.45f, 0.70f, 20,
+            rgb(80, 100, 95), rgb(70, 130, 110), rgb(95, 158, 132),
+            0x1111u);
 
-  // Gekruemmte Welt: der Boden ist die gemeinsame Bezugslinie fuer
-  // alle Baeume und spaeter auch fuer Aeste.
-  for (int x = 0; x < 466; ++x) {
-    const int y = groundYAt(x);
-    if (y < 466) {
-      gfx->drawFastVLine(x, y, 466 - y, soil);
-      gfx->drawFastHLine(x, y, 1, ink);
-    }
-  }
+  drawBand(13 * sc, rgb(58, 122, 82), rgb(78, 145, 95), 0);
+  drawLayer(0.65f, 62 * sc, 13 * sc, 0.65f, 0.95f, 22,
+            rgb(92, 64, 44), rgb(40, 108, 68), rgb(62, 138, 88),
+            0x2222u);
 
-  // Hintergrundwald: kleinere Baeume weiter hinten. Sie stehen auf dem
-  // Boden, statt als einzelne Kreise frei in der Luft zu schweben.
-  const int farX[] = {12, 58, 105, 154, 202, 260, 309, 360, 412, 455};
-  const int farH[] = {72, 91, 66, 84, 76, 95, 70, 88, 67, 82};
-  for (int i = 0; i < 10; ++i) {
-    int x = farX[i];
-    int base = groundYAt((int16_t)x);
-    int h = farH[i];
-    int topY = base - h;
+  drawBand(0, rgb(70, 150, 60), rgb(105, 190, 72), rgb(112, 82, 52));
+  drawLayer(1.00f, 120 * sc, 0, 0.95f, 1.30f, 40,
+            rgb(108, 68, 40), rgb(40, 125, 55), rgb(72, 162, 72),
+            0x3333u);
 
-    // Stumpf ist immer zwischen Boden und Krone.
-    gfx->fillRoundRect(x - 4, topY + 22, 8, h - 18, 3, trunkDark);
-    gfx->fillCircle(x, topY + 15, 17, farTree);
-    gfx->fillCircle(x - 12, topY + 26, 13, farTree);
-    gfx->fillCircle(x + 12, topY + 27, 13, farTree);
-  }
-
-  // Vorderer Wald: deutlich weniger, dafuer echte Baumstaemme mit
-  // Kronen am oberen Ende. Der Stamm bleibt senkrecht zum Boden,
-  // die Weltkruemmung entsteht allein durch die unterschiedliche Hoehe
-  // des Bodens an jeder Position.
-  const int frontX[] = {28, 92, 176, 292, 374, 446};
-  const int frontH[] = {132, 108, 145, 118, 140, 112};
-  for (int i = 0; i < 6; ++i) {
-    int x = frontX[i];
-    int base = groundYAt((int16_t)x);
-    int h = frontH[i];
-    int topY = base - h;
-
-    gfx->fillRoundRect(x - 7, topY + 20, 14, h - 18, 5, trunk);
-    gfx->drawLine(x - 3, topY + 24, x - 3, base - 5, trunkDark);
-    gfx->drawLine(x + 2, topY + 25, x + 2, base - 5, trunkDark);
-
-    gfx->fillCircle(x, topY + 12, 29, tree);
-    gfx->fillCircle(x - 23, topY + 31, 23, tree);
-    gfx->fillCircle(x + 23, topY + 32, 24, tree);
-    gfx->fillCircle(x - 8, topY - 5, 16, treeDark);
-    gfx->fillCircle(x + 15, topY + 2, 18, treeDark);
-  }
-
-  // Unregelmaessiges Gras direkt am Wegesrand, aber niedrig genug,
-  // damit der Spielbereich nicht verdeckt wird.
-  for (int x = 5; x < 466; x += 38) {
-    int base = groundYAt((int16_t)x);
-    gfx->drawLine(x, base, x - 4, base - 10, grass);
-    gfx->drawLine(x + 4, base, x + 7, base - 13, grass);
-    gfx->drawLine(x + 8, base, x + 12, base - 8, grass);
+  // Kleine Grasdetails entlang des Weges.
+  uint16_t grass = rgb(70, 150, 70);
+  for (int x = 5; x < (int)W; x += 38) {
+    int base = ri(groundY(x));
+    g->drawLine(x, base, x - 4, base - 10, grass);
+    g->drawLine(x + 4, base, x + 7, base - 13, grass);
+    g->drawLine(x + 8, base, x + 12, base - 8, grass);
   }
 
   // Dezente Wolken.
   int cloud = (int)((millis() / 45) % 560) - 60;
-  gfx->fillCircle(cloud, 82, 11, 0xFFFF);
-  gfx->fillCircle(cloud + 16, 85, 9, 0xFFFF);
-  gfx->fillCircle(cloud - 13, 87, 8, 0xFFFF);
-}
+  uint16_t cloudC = rgb(250, 252, 246);
+  g->fillCircle(cloud, 82, 11, cloudC);
+  g->fillCircle(cloud + 16, 85, 9, cloudC);
+  g->fillCircle(cloud - 13, 87, 8, cloudC);
 
-void drawScore() {
-  uint16_t ink = rgb565(24, 28, 38);
-  uint16_t panel = rgb565(248, 248, 238);
+  for (int i = 0; i < MAXOB; ++i) {
+    if (obs[i].type == OB_BUSH) drawBush(obs[i].x);
+    else if (obs[i].type == OB_BRANCH) drawBranchTree(obs[i].x);
+  }
 
-  char score[20];
-  snprintf(score, sizeof(score), "SCORE %04u", gScore);
-
-  // Nur der aktuelle Score waehrend des Laufs; der Bestwert bleibt im Game Over.
-  gfx->fillRoundRect(170, 50, 126, 42, 12, panel);
-  gfx->drawRoundRect(170, 50, 126, 42, 12, ink);
-
-  gfx->setTextColor(ink);
-  gfx->setTextSize(2);
-  gfx->setCursor(183, 64);
-  gfx->print(score);
-}
-
-void drawGameOver() {
-  uint16_t ink = rgb565(24, 28, 38);
-  uint16_t accent = rgb565(215, 70, 70);
-
-  gfx->fillRoundRect(64, 135, 338, 190, 20, 0xFFFF);
-  gfx->drawRoundRect(64, 135, 338, 190, 20, ink);
-
-  gfx->setTextColor(accent);
-  gfx->setTextSize(4);
-  gfx->setCursor(112, 160);
-  gfx->print("GAME OVER");
-
-  char score[20];
-  char best[20];
-  snprintf(score, sizeof(score), "SCORE: %04u", gScore);
-  snprintf(best, sizeof(best), "BEST:  %04u", gBest);
-
-  gfx->setTextColor(ink);
-  gfx->setTextSize(2);
-  gfx->setCursor(139, 225);
-  gfx->print(score);
-  gfx->setCursor(139, 255);
-  gfx->print(best);
-
-  gfx->setCursor(125, 292);
-  gfx->print("TOUCH = RUN");
+  drawFox();
+  drawHud();
 }
 
 } // namespace
 
 bool tamaDashOpen() {
-  return gOpen;
+  return active;
 }
 
 void tamaDashResetEasterEgg() {
-  gEggTaps = 0;
-  gLastEggTap = 0;
+  sunTaps = 0;
+  lastSunTapMs = 0;
 }
 
 bool tamaDashHandleSunTap(int16_t x, int16_t y) {
-  // Unsichtbare Trefferzone um das bestehende Sonnen-Symbol.
+  // Bestehendes Sonnen-Symbol auf der Helligkeitsseite.
   const int dx = x - 72;
   const int dy = y - 226;
-  if (dx * dx + dy * dy > 34 * 34) return false;
+  if (dx * dx + dy * dy > 34 * 34) {
+    sunTaps = 0;
+    return false;
+  }
 
   uint32_t now = millis();
-  if (gLastEggTap && now - gLastEggTap > EASTER_TAP_GAP_MS) {
-    gEggTaps = 0;
+  if (sunTaps > 0 && now - lastSunTapMs > TD_SUN_MAX_GAP_MS) {
+    sunTaps = 0;
   }
 
-  gEggTaps++;
-  gLastEggTap = now;
+  lastSunTapMs = now;
 
-  if (gEggTaps >= 5) {
-    gEggTaps = 0;
-    gLastEggTap = 0;
-    gOpen = true;
+  if (++sunTaps >= TD_SUN_TAPS) {
+    sunTaps = 0;
+    lastSunTapMs = 0;
+
+    g = gfx;
+    W = (float)gfx->width();
+    H = (float)gfx->height();
+    sc = W / 466.0f;
+    cx = W / 2.0f;
+    R = 1.5f * W;
+    G = H * 0.64f;
+    foxX = W * 0.30f;
+
     loadBest();
+    rngS ^= micros();
     resetRun();
+
+    active = true;
+    lastMs = millis();
+    lastTapMs = 0;
+    return true;
   }
+
   return true;
 }
 
 bool tamaDashTap(int16_t x, int16_t y) {
-  if (!gOpen) return false;
+  if (!active) return false;
 
-  // Sichtbarer Pfeil klein, Touch-Zone bewusst groesser.
-  if (x >= BACK_X0 && x <= BACK_X1 && y <= BACK_Y1) {
-    gOpen = false;
-    gGameOver = false;
-    tamaDashResetEasterEgg();
-    return true;
+  // Groessere unsichtbare Touchflaeche fuer den kleinen Pfeil.
+  if (y < 66 * sc && fabsf(x - cx) < 55 * sc) {
+    st = ST_EXIT;
+    return false;
   }
+
+  uint32_t now = millis();
+  if (now - lastTapMs < 50) return false;
+  lastTapMs = now;
 
   jump();
   return false;
 }
 
 void tamaDashRender() {
-  if (!gOpen) return;
+  if (!active) return;
 
-  drawScene();
-  drawBackArrow();
-
-  if (!gGameOver) {
-    step();
-    drawObstacle();
-    drawPlayer();
-    drawScore();
-  } else {
-    drawGameOver();
+  if (st == ST_EXIT) {
+    active = false;
+    st = ST_RUNNING;
+    tamaDashResetEasterEgg();
+    g = nullptr;
+    return;
   }
 
-  gfx->flush();
+  uint32_t now = millis();
+  if (now - lastMs < 16) return;
+
+  float dt = (now - lastMs) / 1000.0f;
+  if (dt > 0.05f) dt = 0.05f;
+  lastMs = now;
+
+  update(dt);
+  draw();
+  g->flush();
 }
