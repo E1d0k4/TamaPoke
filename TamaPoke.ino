@@ -22,10 +22,13 @@
 #include "rtcbat.h"
 #include "i18n.h"
 #include "audio.h"
+#include <Preferences.h>
 
-// Version del firmware. Subir este numero en cada release (y manifest.json para
-// el instalador web). Se muestra en la pantalla de ajustes y por serie al arrancar.
-#define FW_VERSION "1.17"
+// Versiones: la original se conserva como referencia; la fork tiene su propia
+// numeracion semantica y avanza de forma independiente.
+#define ORIGINAL_VERSION "1.17"
+#define FORK_VERSION "0.1.0"
+#define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
   LCD_CS, LCD_SCLK, LCD_SDIO0, LCD_SDIO1, LCD_SDIO2, LCD_SDIO3);
@@ -72,7 +75,12 @@ char nameBuf[12] = "";
 uint8_t nameLen = 0;
 uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
 bool clockOpen = false;       // pantalla de ajuste de hora (deslizar abajo)
+bool settingsOpen = false;    // ajustes propios de la fork
 int clockH = 12, clockM = 0;  // hora en edicion
+
+// ajustes persistentes de la fork
+uint8_t userBrightness = 100;  // 10..100 %, brillo normal configurado
+
 
 // escena de bano: espuma sobre el bicho y limpieza al reventar
 uint32_t bathUntil = 0;
@@ -152,6 +160,10 @@ static const int16_t STARTER_DEX[3] = { 1, 4, 7 };
 volatile bool gTouchIrq = false;
 void IRAM_ATTR touchIsr() { gTouchIrq = true; }
 uint32_t lastRender = 0;
+void updateBrightness(uint32_t now);
+void renderSettings();
+void settingsTap(int16_t x, int16_t y);
+
 // proteccion del AMOLED: atenuado por inactividad
 uint32_t lastInteract = 0;
 uint8_t dimStage = 0;        // 0 despierto, 1 atenuado (90s), 2 casi apagado (5min)
@@ -171,7 +183,7 @@ void setup() {
   // monitor serie abierto en el host (el bufer TX del USB CDC se llena
   // y nadie lo vacia) -> con timeout 0 los mensajes se descartan
   Serial.setTxTimeoutMs(0);
-  Serial.printf("TamaPoke fw v%s\n", FW_VERSION);
+  Serial.printf("TamaPoke original v%s / fork v%s\n", ORIGINAL_VERSION, FORK_VERSION);
   loadLang();  // idioma guardado (ES por defecto)
   Wire.begin(IIC_SDA, IIC_SCL);
   // CST9217 (tactil), AXP2101 (PMU) y PCF85063 (RTC) comparten este bus I2C.
@@ -188,7 +200,14 @@ void setup() {
   // QSPI a 80MHz (por defecto 40): el flush del framebuffer es el cuello de
   // botella del fps (~56ms a 40MHz). Si el panel mostrara basura, bajar a 40M.
   if (!gfx->begin(80000000)) Serial.println("gfx->begin() fallo");
-  panel->setBrightness(180);
+  {
+    Preferences p;
+    p.begin("tamapoke", true);
+    userBrightness = p.getUChar("bright", 100);
+    p.end();
+    if (userBrightness < 10 || userBrightness > 100) userBrightness = 100;
+  }
+  panel->setBrightness((uint8_t)(180L * userBrightness / 100L));
   applyLangFont();  // fuente del idioma guardado (clasica salvo CJK)
 
   touch.setPins(TP_RESET, TP_INT);
@@ -338,6 +357,18 @@ void loop() {
 }
 
 // brillo segun sueno + inactividad (proteccion del AMOLED)
+static uint8_t normalBrightnessTarget() {
+  const uint16_t base = usbPresent() ? 180 : 145;
+  return (uint8_t)max(1, (int)(base * userBrightness / 100));
+}
+
+void saveUserBrightness() {
+  Preferences p;
+  p.begin("tamapoke", false);
+  p.putUChar("bright", userBrightness);
+  p.end();
+}
+
 void updateBrightness(uint32_t now) {
   // los eventos visibles despiertan la pantalla solos
   if (pet.evolving() || pet.ceremony || pet.eating() || pet.showHeart()) {
@@ -345,9 +376,11 @@ void updateBrightness(uint32_t now) {
   }
   uint32_t idle = now - lastInteract;
   dimStage = (idle > 300000) ? 2 : (idle > 90000) ? 1 : 0;
-  uint8_t target = pet.sleeping ? 25 : (usbPresent() ? 180 : 145);
-  if (dimStage == 1) target = pet.sleeping ? 10 : 60;
-  else if (dimStage == 2) target = 8;
+  const uint8_t normal = normalBrightnessTarget();
+  uint8_t target = pet.sleeping ? min<uint8_t>(normal, 25) : normal;
+  const uint8_t base = usbPresent() ? 180 : 145;
+  if (dimStage == 1) target = max<uint8_t>(1, (uint8_t)(normal * 60L / base));
+  else if (dimStage == 2) target = max<uint8_t>(1, (uint8_t)(normal * 8L / base));
   if (screenOff) target = 0;
   static uint8_t current = 255;
   if (target != current) {
@@ -560,7 +593,7 @@ void onSwipeV(int dir) {
 // deslizar: dir +1 = hacia la derecha
 void onSwipe(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (gameOpen || kbOpen || clockOpen) return;
+  if (gameOpen || kbOpen || clockOpen || settingsOpen) return;
   if (cardOpen) {  // dentro de la ficha: cambiar entre las 4 paginas
     int p = (int)cardPage + (dir > 0 ? -1 : 1);  // izquierda avanza
     cardPage = p < 0 ? 0 : (p > 3 ? 3 : p);
@@ -619,7 +652,18 @@ void onTap(int16_t x, int16_t y) {
     clockTap(x, y);
     return;
   }
+  if (settingsOpen) {
+    settingsTap(x, y);
+    return;
+  }
   if (pet.ceremony) return;  // durante la despedida no hay botones
+  // engranaje: ajustes propios de la fork
+  if (x >= 378 && x <= 438 && y >= 92 && y <= 152) {
+    settingsOpen = true;
+    lastInteract = millis();
+    sfxPlay(SFX_TAP);
+    return;
+  }
   if (cardOpen) {
     if (cardPage == 0 && y < 84) openKeyboard();  // tocar el nombre = renombrar
     else if (cardPage == 1 && y >= 300 && y <= 340 && x >= 96 && x <= 370) {
@@ -992,6 +1036,10 @@ void render() {
   }
   if (clockOpen) {
     renderClock();
+    return;
+  }
+  if (settingsOpen) {
+    renderSettings();
     return;
   }
   if (cardOpen) {
@@ -1455,6 +1503,147 @@ void drawCardStat(int y, const char *label, uint16_t val, uint16_t maxBar, uint1
   if (fw > bw) fw = bw;
   gfx->fillRoundRect(bx, y + 2, bw, 11, 3, UI_TRACK);
   if (fw > 2) gfx->fillRoundRect(bx, y + 2, fw, 11, 3, color);
+}
+
+// ---------- ajustes de la fork ----------
+static void drawGearIcon(int cx, int cy, uint16_t col, int r = 10) {
+  for (int i = 0; i < 8; i++) {
+    float a = i * (float)(PI / 4.0);
+    int x1 = cx + (int)(cosf(a) * (r - 1));
+    int y1 = cy + (int)(sinf(a) * (r - 1));
+    int x2 = cx + (int)(cosf(a) * (r + 5));
+    int y2 = cy + (int)(sinf(a) * (r + 5));
+    gfx->drawLine(x1, y1, x2, y2, col);
+  }
+  gfx->drawCircle(cx, cy, r + 2, col);
+  gfx->fillCircle(cx, cy, 4, UI_BG_DAY);
+}
+
+static void drawSunIcon(int cx, int cy, uint16_t col) {
+  gfx->fillCircle(cx, cy, 10, col);
+  for (int i = 0; i < 8; i++) {
+    float a = i * (float)(PI / 4.0);
+    int x1 = cx + (int)(cosf(a) * 16);
+    int y1 = cy + (int)(sinf(a) * 16);
+    int x2 = cx + (int)(cosf(a) * 25);
+    int y2 = cy + (int)(sinf(a) * 25);
+    gfx->drawLine(x1, y1, x2, y2, col);
+  }
+}
+
+static void drawSpeakerIcon(int cx, int cy, uint16_t col) {
+  gfx->fillRect(cx - 20, cy - 6, 7, 12, col);
+  gfx->fillTriangle(cx - 13, cy - 8, cx - 13, cy + 8, cx - 1, cy + 16, col);
+  gfx->drawCircle(cx + 1, cy, 13, col);
+  gfx->fillCircle(cx + 1, cy, 9, UI_BG_DAY);
+  gfx->drawCircle(cx + 1, cy, 17, col);
+}
+
+static void drawBackIcon(int cx, int cy, uint16_t col) {
+  gfx->drawLine(cx + 14, cy, cx - 10, cy, col);
+  gfx->drawLine(cx - 10, cy, cx, cy - 10, col);
+  gfx->drawLine(cx - 10, cy, cx, cy + 10, col);
+}
+
+void drawSettingsGear() {
+  gfx->fillCircle(406, 122, 27, UI_WHITE);
+  gfx->drawCircle(406, 122, 27, inkColor());
+  drawGearIcon(406, 122, inkColor(), 9);
+}
+
+static void drawSettingButton(int x, int y, const char *label) {
+  gfx->fillRoundRect(x, y, 62, 52, 12, UI_WHITE);
+  gfx->drawRoundRect(x, y, 62, 52, 12, UI_INK);
+  gfx->setTextColor(UI_INK);
+  setSize(4);
+  setCur(x + 23, y + 9);
+  printT(label);
+}
+
+void renderSettings() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("SETTINGS", 3), 40);
+  printT("SETTINGS");
+
+  // Helligkeit
+  drawSunIcon(90, 120, UI_INK);
+  char b[8];
+  snprintf(b, sizeof(b), "%u%%", userBrightness);
+  setSize(4);
+  gfx->setTextColor(UI_INK);
+  setCur(151, 107);
+  printT(b);
+  drawSettingButton(258, 94, "-");
+  drawSettingButton(332, 94, "+");
+
+  // Lautstärke
+  drawSpeakerIcon(90, 214, UI_INK);
+  char v[8];
+  snprintf(v, sizeof(v), "%u%%", audioVolume());
+  setSize(4);
+  setCur(151, 201);
+  printT(v);
+  drawSettingButton(258, 188, "-");
+  drawSettingButton(332, 188, "+");
+
+  // Versionen bewusst getrennt: Original bleibt als Referenz sichtbar.
+  gfx->setTextColor(UI_TRACK);
+  setSize(2);
+  char ov[32], fv[32];
+  snprintf(ov, sizeof(ov), "Original  %s", ORIGINAL_VERSION);
+  snprintf(fv, sizeof(fv), "Fork      %s", FORK_VERSION);
+  setCur(centerX(ov, 2), 292);
+  printT(ov);
+  setCur(centerX(fv, 2), 320);
+  printT(fv);
+
+  // Zurueck
+  gfx->fillRoundRect(133, 365, 200, 50, 14, UI_BAR_OK);
+  drawBackIcon(CX, 390, UI_BG_DAY);
+  gfx->flush();
+}
+
+void settingsTap(int16_t x, int16_t y) {
+  if (y >= 94 && y <= 146) {
+    if (x >= 258 && x < 320) {
+      userBrightness = (userBrightness <= 10) ? 100 : userBrightness - 10;
+      saveUserBrightness();
+      lastInteract = millis();
+      updateBrightness(millis());
+      sfxPlay(SFX_TAP);
+      return;
+    }
+    if (x >= 332 && x < 394) {
+      userBrightness = (userBrightness >= 100) ? 10 : userBrightness + 10;
+      saveUserBrightness();
+      lastInteract = millis();
+      updateBrightness(millis());
+      sfxPlay(SFX_TAP);
+      return;
+    }
+  }
+  if (y >= 188 && y <= 240) {
+    if (x >= 258 && x < 320) {
+      uint8_t v = audioVolume();
+      audioSetVolume(v <= 10 ? 100 : v - 10);
+      sfxPlay(SFX_TAP);
+      return;
+    }
+    if (x >= 332 && x < 394) {
+      uint8_t v = audioVolume();
+      audioSetVolume(v >= 100 ? 10 : v + 10);
+      sfxPlay(SFX_TAP);
+      return;
+    }
+  }
+  if (y >= 365 && y <= 415 && x >= 133 && x <= 333) {
+    settingsOpen = false;
+    lastInteract = millis();
+    return;
+  }
 }
 
 // ---------- ajuste de hora en pantalla (deslizar abajo) ----------
