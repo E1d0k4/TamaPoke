@@ -543,6 +543,18 @@ void handleTouch() {
     return;
   }
 
+  // Tama Dash tiene su propio camino de entrada tactil. No dejar que un
+  // toque del runner atraviese el sistema normal de gestos: ese sistema espera
+  // al levantamiento del dedo y actualiza el estado global de inactividad.
+  // En el runner, un Touch-Down es directamente una orden de salto/back.
+  if (tamaDashActive()) {
+    if (pressed && !wasPressed) {
+      tamaDashTap(x, y);
+    }
+    wasPressed = pressed;
+    return;
+  }
+
   if (pressed && !wasPressed) {  // empieza el gesto
     tX0 = tXl = x;
     tY0 = tYl = y;
