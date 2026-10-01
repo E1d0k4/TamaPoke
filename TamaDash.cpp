@@ -447,10 +447,6 @@ static void drawBranchTree(float tx) {
 
 static void drawFox() {
   Frame f = frameAt(foxX, -jumpH, sc * 0.8f);
-  // Tama bewegt sich nach links; das Modell muss deshalb auch nach links schauen.
-  // Nur die Tangentenrichtung wird gespiegelt, die Hoehe/Planetenkrümmung bleibt erhalten.
-  f.c = -f.c;
-
   uint16_t org = rgb(242, 128, 42);
   uint16_t dko = rgb(200, 92, 25);
   uint16_t cre = rgb(255, 242, 218);
@@ -460,7 +456,7 @@ static void drawFox() {
   float wag = sinf(runTime * 9.0f) * 4.0f;
   bool air = jumpH > 0.5f;
 
-  auto leg = [&](float hx, float off, uint16_t col) {
+  auto leg = [&](float hx, float phase, uint16_t col) {
     float fxo;
     float fyo;
 
@@ -468,8 +464,9 @@ static void drawFox() {
       fxo = hx + (hx > 0 ? 11 : -11);
       fyo = 5;
     } else {
-      fxo = hx + sinf(ph + off) * 9;
-      fyo = fmaxf(0.0f, -cosf(ph + off)) * 6;
+      // Der Koerper bleibt unveraendert; nur die Beinbewegung wird umgekehrt.
+      fxo = hx - sinf(ph + phase) * 9;
+      fyo = fmaxf(0.0f, -cosf(ph + phase)) * 6;
     }
 
     limb(f, hx, 17, fxo, fyo + 3, 5.5f, col);
