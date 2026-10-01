@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <math.h>
+#include <cstring>
 #include "Arduino_GFX_Library.h"
 #include "audio.h"
 
@@ -66,6 +67,8 @@ static uint32_t lastSunTapMs = 0;
 
 static constexpr uint8_t TD_SUN_TAPS = 5;
 static constexpr uint32_t TD_SUN_MAX_GAP_MS = 1000;
+
+static constexpr uint16_t TD_WHITE = 0xFFFF;
 
 static inline uint16_t rgb(uint8_t r, uint8_t gg, uint8_t b) {
   return (uint16_t)(((r & 0xF8) << 8) | ((gg & 0xFC) << 3) | (b >> 3));
@@ -514,10 +517,10 @@ static void drawBackArrow() {
 
   g->fillCircle(x, y, r, bg);
   g->fillRect(x - ri(8 * sc), y - ri(1.5f * sc),
-              ri(18 * sc), ri(3 * sc) + 1, WHITE);
+              ri(18 * sc), ri(3 * sc) + 1, TD_WHITE);
   g->fillTriangle(x - ri(10 * sc), y,
                   x - ri(2 * sc), y - ri(8 * sc),
-                  x - ri(2 * sc), y + ri(8 * sc), WHITE);
+                  x - ri(2 * sc), y + ri(8 * sc), TD_WHITE);
 }
 
 static void drawHud() {
@@ -536,7 +539,7 @@ static void drawHud() {
     g->fillRoundRect(px, py, tw + 24, th + 12, 10,
                      rgb(25, 45, 35));
     g->setTextSize(ts);
-    g->setTextColor(WHITE);
+    g->setTextColor(TD_WHITE);
     g->setCursor(px + 12, py + 6);
     g->print(buf);
     return;
