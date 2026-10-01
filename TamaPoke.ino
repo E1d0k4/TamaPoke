@@ -1636,8 +1636,10 @@ void renderClock() {
 
   gfx->setTextColor(UI_TRACK);
   setSize(1);
-  setCur(centerX("TamaPoke v1.17", 1), 444);
-  printT("TamaPoke v1.17");
+  char ver[40];
+  snprintf(ver, sizeof(ver), "Original %s  |  Fork %s", ORIGINAL_VERSION, FORK_VERSION);
+  setCur(centerX(ver, 1), 444);
+  printT(ver);
   gfx->flush();
 }
 
