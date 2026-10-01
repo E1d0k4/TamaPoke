@@ -153,8 +153,7 @@ void drawPlayer() {
   int x = PLAYER_X;
   int bottom = (int)gPlayerY;
 
-  // Kleiner Fuchs als eigenes Tama-Dash-Sprite.
-  // Kopf, spitze Ohren, Bauch und buschiger Schwanz ergeben eine klare Waldfigur.
+  // Kleiner Fuchs schaut nach links, in Laufrichtung.
   gfx->fillRoundRect(x - 17, bottom - 37, 34, 31, 10, fur);
   gfx->drawRoundRect(x - 17, bottom - 37, 34, 31, 10, ink);
 
@@ -170,18 +169,17 @@ void drawPlayer() {
   gfx->fillRoundRect(x - 8, bottom - 17, 16, 10, 5, belly);
   gfx->fillCircle(x - 7, bottom - 26, 3, ink);
   gfx->fillCircle(x + 7, bottom - 26, 3, ink);
-  gfx->fillCircle(x, bottom - 18, 2, ink);
+  gfx->fillCircle(x - 10, bottom - 18, 2, ink);
 
   int phase = ((millis() / 110) & 1) ? 3 : -3;
   gfx->fillRoundRect(x - 11 + phase, bottom - 8, 7, 8, 3, ink);
   gfx->fillRoundRect(x + 4 - phase, bottom - 8, 7, 8, 3, ink);
 
-  // Buschiger Schwanz hinter dem Koerper.
-  gfx->fillCircle(x + 19, bottom - 20, 11, fur);
-  gfx->fillCircle(x + 24, bottom - 20, 7, belly);
-  gfx->drawCircle(x + 19, bottom - 20, 11, ink);
+  // Schwanz jetzt hinten links, damit er nicht wie ein Schild aussieht.
+  gfx->fillCircle(x - 19, bottom - 20, 11, fur);
+  gfx->fillCircle(x - 24, bottom - 20, 7, belly);
+  gfx->drawCircle(x - 19, bottom - 20, 11, ink);
 }
-
 
 void drawObstacle() {
   uint16_t ink = rgb565(24, 28, 38);
@@ -207,7 +205,6 @@ void drawObstacle() {
   gfx->drawRoundRect(x - 19, base - 8, 38, 8, 4, ink);
 }
 
-
 void drawScene() {
   uint16_t sky = rgb565(220, 238, 230);
   uint16_t soil = rgb565(126, 192, 127);
@@ -226,14 +223,22 @@ void drawScene() {
     }
   }
 
-  // Waldkulisse: entfernte Baumkronen bleiben ruhig im Hintergrund.
+  // Waldkulisse: die Baeume folgen der gekruemmten Welt.
+  // Ihre Wurzeln sitzen auf dem Boden und die Stämme neigen sich
+  // leicht nach aussen, sodass die Kulisse die Rundung sichtbar aufnimmt.
   for (int x = 20; x < 466; x += 92) {
     int sway = ((millis() / 700 + x) % 8) - 4;
-    int top = 112 + (x % 24);
-    gfx->fillRoundRect(x + sway - 5, top + 38, 10, 70, 4, trunk);
-    gfx->fillCircle(x + sway, top + 25, 24, tree);
-    gfx->fillCircle(x + sway - 18, top + 38, 18, tree);
-    gfx->fillCircle(x + sway + 18, top + 38, 18, tree);
+    int base = groundYAt((int16_t)x);
+    int lean = (x - CX) / 14;
+    int trunkTopX = x + sway + lean;
+    int trunkTopY = base - 82;
+
+    gfx->drawLine(x + sway - 5, base, trunkTopX - 5, trunkTopY, trunk);
+    gfx->drawLine(x + sway + 5, base, trunkTopX + 5, trunkTopY, trunk);
+
+    gfx->fillCircle(trunkTopX, trunkTopY - 8, 24, tree);
+    gfx->fillCircle(trunkTopX - 18, trunkTopY + 5, 18, tree);
+    gfx->fillCircle(trunkTopX + 18, trunkTopY + 5, 18, tree);
   }
 
   // Kleine bewegte Wolken.
@@ -243,26 +248,25 @@ void drawScene() {
   gfx->fillCircle(cloud - 15, 87, 9, 0xFFFF);
 }
 
-
 void drawScore() {
   uint16_t ink = rgb565(24, 28, 38);
   uint16_t panel = rgb565(248, 248, 238);
 
   char score[20];
   char best[20];
-  snprintf(score, sizeof(score), "SCORE: %04u", gScore);
-  snprintf(best, sizeof(best), "BEST:  %04u", gBest);
+  // Kuerzere Labels: Textgroesse 2 bleibt gut lesbar und passt sauber
+  // in den vorhandenen kompakten Hintergrund.
+  snprintf(score, sizeof(score), "SCORE %04u", gScore);
+  snprintf(best, sizeof(best), "BEST  %04u", gBest);
 
-  // Kompaktes HUD oben mittig. Die beiden Werte stehen untereinander,
-  // ohne den eigentlichen Spielbereich mit einer grossen Leiste zu verdecken.
   gfx->fillRoundRect(164, 50, 138, 70, 12, panel);
   gfx->drawRoundRect(164, 50, 138, 70, 12, ink);
 
   gfx->setTextColor(ink);
   gfx->setTextSize(2);
-  gfx->setCursor(180, 65);
+  gfx->setCursor(177, 65);
   gfx->print(score);
-  gfx->setCursor(180, 95);
+  gfx->setCursor(183, 95);
   gfx->print(best);
 }
 
