@@ -6,8 +6,8 @@ This fork keeps the original TamaPoke firmware as the base and adds a small set 
 
 - 🔆 **Brightness:** adjustable from 10% to 100%, saved across reboots.
 - 🔊 **Volume:** adjustable from 10% to 100%, saved across reboots.
-- 🌙 **Automatic dimming:** the original inactivity dimming behavior is preserved; the configured brightness is the normal brightness level.
-- ⚙️ **Settings:** a dedicated settings screen is opened with the gear icon.
+- 🌙 **Automatic dimming:** the original inactivity dimming behavior is preserved; the configured brightness is used as the normal brightness level, with dimming still working relative to it.
+- ⚙️ **Settings:** brightness, volume, language and sound are integrated into the existing clock/language settings screen.
 - 🖼️ **Symbol controls:** brightness and volume use graphical icons instead of text labels such as "Bri" or "Vol".
 - 🔢 **Versions:** original version **1.17** and fork version **0.1.2** are shown separately.
 - 🌐 **Web installer:** [Install TamaPoke 0.1.2 directly in your browser](https://e1d0k4.github.io/TamaPoke/) — no Arduino setup required.
