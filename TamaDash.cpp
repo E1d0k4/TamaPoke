@@ -68,6 +68,7 @@ static uint32_t lastSunTapMs = 0;
 
 static constexpr uint8_t TD_SUN_TAPS = 5;
 static constexpr uint32_t TD_SUN_MAX_GAP_MS = 1000;
+static constexpr uint32_t TD_GAMEOVER_IDLE_MS = 6000;
 
 static constexpr uint16_t TD_WHITE = 0xFFFF;
 
@@ -446,6 +447,9 @@ static void drawBranchTree(float tx) {
 
 static void drawFox() {
   Frame f = frameAt(foxX, -jumpH, sc * 0.8f);
+  // Tama bewegt sich nach links; das Modell muss deshalb auch nach links schauen.
+  // Nur die Tangentenrichtung wird gespiegelt, die Hoehe/Planetenkrümmung bleibt erhalten.
+  f.c = -f.c;
 
   uint16_t org = rgb(242, 128, 42);
   uint16_t dko = rgb(200, 92, 25);
@@ -703,6 +707,18 @@ bool tamaDashRender() {
   }
 
   uint32_t now = millis();
+
+  // Nach einem Game Over nicht minutenlang auf dem Bildschirm stehen bleiben.
+  // Ein Touch kann weiterhin direkt einen neuen Lauf starten; ohne Eingabe
+  // kehren wir nach kurzer Pause automatisch zum Hauptbildschirm zurueck.
+  if (st == ST_GAMEOVER && now - overMs >= TD_GAMEOVER_IDLE_MS) {
+    active = false;
+    st = ST_RUNNING;
+    tamaDashResetEasterEgg();
+    g = nullptr;
+    return false;
+  }
+
   // The main TamaPoke loop deliberately limits full-screen flushes to avoid
   // overlapping QSPI/DMA transfers. Keep one authoritative frame timestamp
   // here as well, so Tama Dash never renders twice for the same scheduler tick.
