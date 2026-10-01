@@ -1567,9 +1567,14 @@ void renderClock() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
+  // Die obere Beschriftung sitzt innerhalb der sichtbaren Kreisfläche.
+  // Bei "Zeit stellen" wurden die Randbuchstaben am oberen Kreisrand angeschnitten.
   setSize(3);
-  setCur(centerX(T(S_SET_TIME), 3), 16);
-  printT(T(S_SET_TIME));
+  const char *setTimeLabel = T(S_SET_TIME);
+  int setTimeSize = (textW(setTimeLabel, 3) <= 300) ? 3 : 2;
+  setSize(setTimeSize);
+  setCur(centerX(setTimeLabel, setTimeSize), 28);
+  printT(setTimeLabel);
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
@@ -1634,15 +1639,20 @@ void renderClock() {
   setCur(CX - 18, 368);
   printT("OK");
 
-  // Separate, high-contrast version area; kept fully inside the 466x466 display.
-  gfx->fillRoundRect(54, 414, 358, 34, 10, UI_WHITE);
-  gfx->drawRoundRect(54, 414, 358, 34, 10, UI_INK);
+  // Separate version area: two short rows stay fully inside the visible
+  // circular area, including the version numbers.
+  gfx->fillRoundRect(96, 404, 274, 48, 10, UI_WHITE);
+  gfx->drawRoundRect(96, 404, 274, 48, 10, UI_INK);
   gfx->setTextColor(UI_INK);
   setSize(2);
-  char ver[40];
-  snprintf(ver, sizeof(ver), "Original: %s  |  Fork: %s", ORIGINAL_VERSION, FORK_VERSION);
-  setCur(centerX(ver, 2), 422);
-  printT(ver);
+  char verOriginal[24];
+  char verFork[24];
+  snprintf(verOriginal, sizeof(verOriginal), "Original: %s", ORIGINAL_VERSION);
+  snprintf(verFork, sizeof(verFork), "Fork: %s", FORK_VERSION);
+  setCur(centerX(verOriginal, 2), 408);
+  printT(verOriginal);
+  setCur(centerX(verFork, 2), 428);
+  printT(verFork);
   gfx->flush();
 }
 
