@@ -1521,7 +1521,7 @@ static void drawGearIcon(int cx, int cy, uint16_t col, int r = 10) {
     gfx->drawLine(x1, y1, x2, y2, col);
   }
   gfx->drawCircle(cx, cy, r + 2, col);
-  gfx->fillCircle(cx, cy, 4, UI_BG_DAY);
+  gfx->fillCircle(cx, cy, 4, gNight ? UI_BG_NIGHT : UI_BG_DAY);
 }
 
 static void drawSunIcon(int cx, int cy, uint16_t col) {
