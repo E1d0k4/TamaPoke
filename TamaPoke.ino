@@ -1609,7 +1609,7 @@ void renderSettings() {
 void settingsTap(int16_t x, int16_t y) {
   if (y >= 94 && y <= 146) {
     if (x >= 258 && x < 320) {
-      userBrightness = (userBrightness <= 10) ? 100 : userBrightness - 10;
+      userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
       saveUserBrightness();
       lastInteract = millis();
       updateBrightness(millis());
@@ -1617,7 +1617,7 @@ void settingsTap(int16_t x, int16_t y) {
       return;
     }
     if (x >= 332 && x < 394) {
-      userBrightness = (userBrightness >= 100) ? 10 : userBrightness + 10;
+      userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
       saveUserBrightness();
       lastInteract = millis();
       updateBrightness(millis());
@@ -1628,13 +1628,13 @@ void settingsTap(int16_t x, int16_t y) {
   if (y >= 188 && y <= 240) {
     if (x >= 258 && x < 320) {
       uint8_t v = audioVolume();
-      audioSetVolume(v <= 10 ? 100 : v - 10);
+      audioSetVolume(v <= 10 ? 10 : v - 10);
       sfxPlay(SFX_TAP);
       return;
     }
     if (x >= 332 && x < 394) {
       uint8_t v = audioVolume();
-      audioSetVolume(v >= 100 ? 10 : v + 10);
+      audioSetVolume(v >= 100 ? 100 : v + 10);
       sfxPlay(SFX_TAP);
       return;
     }
