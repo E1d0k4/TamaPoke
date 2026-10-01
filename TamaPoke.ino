@@ -1671,7 +1671,8 @@ void clockTap(int16_t x, int16_t y) {
   // Easter Egg: fuenf schnelle Taps auf das bereits vorhandene Sonnen-Symbol.
   // Die Helligkeitsbedienung selbst bleibt unveraendert.
   if (tamaDashHandleSunTap(x, y)) {
-    if (tamaDashActive()) clockOpen = false;
+    tamaDashOpen();
+    clockOpen = false;
     return;
   }
   if (y >= 112 && y <= 170) {
