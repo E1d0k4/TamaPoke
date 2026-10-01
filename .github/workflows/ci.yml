@@ -128,7 +128,5 @@ jobs:
           path: ./web
 
       - name: Deploy installer to GitHub Pages
-        uses: actions/deploy-pages@v4
         id: deployment
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/deploy-pages@v4
