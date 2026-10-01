@@ -20,6 +20,7 @@ static I2SClass i2s;
 static bool gReady = false;
 static bool gOn = true;
 static bool gSleeping = false;
+static uint8_t gVolume = 100;  // 10..100 %, persisted
 static QueueHandle_t gQ = nullptr;
 
 // El NS4150B tarda bastante mas de 8 ms en estabilizarse tras cada apagado, asi
@@ -113,7 +114,7 @@ static int16_t buf[256 * 2];  // estéreo intercalado (L=R)
 static void playTone(uint16_t f, uint16_t ms) {
   int total = SAMPLE_RATE * ms / 1000;
   int half = f ? (SAMPLE_RATE / (2 * f)) : 0;  // medio periodo en muestras
-  const int16_t amp = 5000;
+  const int16_t amp = (int16_t)(5000L * gVolume / 100L);
   int phase = 0, done = 0;
   bool high = true;
   while (done < total) {
@@ -161,7 +162,9 @@ void audioBegin() {
   Preferences p;
   p.begin("tamapoke", true);
   gOn = p.getBool("snd", true);
+  gVolume = p.getUChar("vol", 100);
   p.end();
+  if (gVolume < 10 || gVolume > 100) gVolume = 100;
 
   gReady = true;
   updateAmplifierPower();
@@ -189,3 +192,15 @@ void audioSetSleeping(bool sleeping) {
   gSleeping = sleeping;
   updateAmplifierPower();  // durmiendo no hay efectos: amp apagado, sin consumo
 }
+
+void audioSetVolume(uint8_t percent) {
+  if (percent < 10) percent = 10;
+  if (percent > 100) percent = 100;
+  gVolume = percent;
+  Preferences p;
+  p.begin("tamapoke", false);
+  p.putUChar("vol", gVolume);
+  p.end();
+}
+
+uint8_t audioVolume() { return gVolume; }
