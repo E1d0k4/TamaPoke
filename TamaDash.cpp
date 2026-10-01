@@ -154,35 +154,31 @@ void drawPlayer() {
   int x = PLAYER_X;
   int bottom = (int)gPlayerY;
 
-  // Kleiner Fuchs mit klarer Schnauze, Ohren und buschigem Schwanz.
-  // Er laeuft nach rechts; der Schwanz sitzt deutlich dahinter links.
-  gfx->fillCircle(x - 18, bottom - 19, 12, fur);
-  gfx->fillCircle(x - 24, bottom - 19, 7, cream);
-  gfx->drawCircle(x - 18, bottom - 19, 12, ink);
+  // Kleiner Fuchs mit klarer Schnauze, Ohren und langem buschigem Schwanz.
+  gfx->fillCircle(x - 25, bottom - 21, 13, fur);
+  gfx->fillCircle(x - 34, bottom - 21, 8, cream);
+  gfx->drawCircle(x - 25, bottom - 21, 13, ink);
+  gfx->drawCircle(x - 34, bottom - 21, 8, ink);
 
   gfx->fillRoundRect(x - 11, bottom - 34, 30, 27, 10, fur);
   gfx->drawRoundRect(x - 11, bottom - 34, 30, 27, 10, ink);
 
-  // Spitzere Fuchsohren.
-  gfx->fillTriangle(x - 8, bottom - 31, x - 5, bottom - 48,
+  gfx->fillTriangle(x - 8, bottom - 31, x - 5, bottom - 49,
                     x + 3, bottom - 32, fur);
-  gfx->fillTriangle(x + 6, bottom - 31, x + 13, bottom - 48,
+  gfx->fillTriangle(x + 6, bottom - 31, x + 13, bottom - 49,
                     x + 18, bottom - 29, fur);
-  gfx->fillTriangle(x - 5, bottom - 34, x - 5, bottom - 42,
+  gfx->fillTriangle(x - 5, bottom - 34, x - 5, bottom - 43,
                     x + 0, bottom - 34, ear);
-  gfx->fillTriangle(x + 9, bottom - 34, x + 13, bottom - 42,
+  gfx->fillTriangle(x + 9, bottom - 34, x + 13, bottom - 43,
                     x + 16, bottom - 31, ear);
 
-  // Weisse/creme Schnauze nach rechts + schwarze Nase.
   gfx->fillCircle(x + 14, bottom - 20, 8, cream);
   gfx->fillCircle(x + 20, bottom - 20, 3, ink);
   gfx->fillCircle(x + 7, bottom - 27, 2, ink);
   gfx->drawFastHLine(x + 11, bottom - 16, 7, furDark);
 
-  // Heller Bauch.
   gfx->fillRoundRect(x - 5, bottom - 15, 14, 10, 5, cream);
 
-  // Laufanimation.
   int phase = ((millis() / 110) & 1) ? 3 : -3;
   gfx->fillRoundRect(x - 9 + phase, bottom - 8, 7, 8, 3, furDark);
   gfx->fillRoundRect(x + 5 - phase, bottom - 8, 7, 8, 3, furDark);
@@ -214,17 +210,19 @@ void drawObstacle() {
 
 void drawScene() {
   uint16_t sky = rgb565(211, 231, 220);
-  uint16_t distant = rgb565(116, 157, 112);
-  uint16_t midTree = rgb565(76, 126, 74);
-  uint16_t tree = rgb565(54, 105, 61);
-  uint16_t trunk = rgb565(112, 77, 49);
-  uint16_t undergrowth = rgb565(71, 130, 71);
+  uint16_t farTree = rgb565(91, 139, 86);
+  uint16_t tree = rgb565(57, 111, 63);
+  uint16_t treeDark = rgb565(43, 88, 50);
+  uint16_t trunk = rgb565(111, 73, 45);
+  uint16_t trunkDark = rgb565(82, 54, 37);
   uint16_t soil = rgb565(126, 192, 127);
+  uint16_t grass = rgb565(74, 137, 74);
   uint16_t ink = rgb565(24, 28, 38);
 
   gfx->fillCircle(CX, CY, 231, sky);
 
-  // Sanfte Planeten-Kruemmung.
+  // Gekruemmte Welt: der Boden ist die gemeinsame Bezugslinie fuer
+  // alle Baeume und spaeter auch fuer Aeste.
   for (int x = 0; x < 466; ++x) {
     const int y = groundYAt(x);
     if (y < 466) {
@@ -233,55 +231,56 @@ void drawScene() {
     }
   }
 
-  // Ferne Waldschicht: viele kleine, unregelmaessige Baumkronen statt einer Allee.
-  for (int x = -10; x < 480; x += 47) {
-    int wobble = ((x * 7) % 13) - 6;
+  // Hintergrundwald: kleinere Baeume weiter hinten. Sie stehen auf dem
+  // Boden, statt als einzelne Kreise frei in der Luft zu schweben.
+  const int farX[] = {12, 58, 105, 154, 202, 260, 309, 360, 412, 455};
+  const int farH[] = {72, 91, 66, 84, 76, 95, 70, 88, 67, 82};
+  for (int i = 0; i < 10; ++i) {
+    int x = farX[i];
     int base = groundYAt((int16_t)x);
-    int top = 122 + ((x * 3) % 38);
-    int tx = x + wobble;
-    gfx->drawLine(tx, base - 2, tx + (x - CX) / 22, top + 28, distant);
-    gfx->fillCircle(tx + (x - CX) / 22, top + 18, 18, distant);
-    gfx->fillCircle(tx - 13 + (x % 9), top + 30, 13, distant);
-    gfx->fillCircle(tx + 14, top + 31, 15, distant);
+    int h = farH[i];
+    int topY = base - h;
+
+    // Stumpf ist immer zwischen Boden und Krone.
+    gfx->fillRoundRect(x - 4, topY + 22, 8, h - 18, 3, trunkDark);
+    gfx->fillCircle(x, topY + 15, 17, farTree);
+    gfx->fillCircle(x - 12, topY + 26, 13, farTree);
+    gfx->fillCircle(x + 12, topY + 27, 13, farTree);
   }
 
-  // Mittlere, groessere Baeume. Unterschiedliche Hoehen und Abstaende verhindern
-  // den Eindruck einer geraden Allee.
-  const int treeX[] = {18, 71, 139, 207, 284, 353, 424, 470};
-  const int treeH[] = {118, 92, 132, 105, 125, 96, 138, 108};
-  for (int i = 0; i < 8; ++i) {
-    int x = treeX[i];
+  // Vorderer Wald: deutlich weniger, dafuer echte Baumstaemme mit
+  // Kronen am oberen Ende. Der Stamm bleibt senkrecht zum Boden,
+  // die Weltkruemmung entsteht allein durch die unterschiedliche Hoehe
+  // des Bodens an jeder Position.
+  const int frontX[] = {28, 92, 176, 292, 374, 446};
+  const int frontH[] = {132, 108, 145, 118, 140, 112};
+  for (int i = 0; i < 6; ++i) {
+    int x = frontX[i];
     int base = groundYAt((int16_t)x);
-    int lean = (x - CX) / 18;
-    int tx = x + lean;
-    int top = base - treeH[i];
+    int h = frontH[i];
+    int topY = base - h;
 
-    gfx->fillRoundRect(x - 7, base - 4, 14, treeH[i] + 4, 5, trunk);
-    gfx->fillCircle(tx, top + 18, 30, midTree);
-    gfx->fillCircle(tx - 23, top + 38, 23, midTree);
-    gfx->fillCircle(tx + 24, top + 39, 25, midTree);
-    gfx->fillCircle(tx - 8, top - 1, 17, tree);
-    gfx->fillCircle(tx + 15, top + 8, 20, tree);
+    gfx->fillRoundRect(x - 7, topY + 20, 14, h - 18, 5, trunk);
+    gfx->drawLine(x - 3, topY + 24, x - 3, base - 5, trunkDark);
+    gfx->drawLine(x + 2, topY + 25, x + 2, base - 5, trunkDark);
+
+    gfx->fillCircle(x, topY + 12, 29, tree);
+    gfx->fillCircle(x - 23, topY + 31, 23, tree);
+    gfx->fillCircle(x + 23, topY + 32, 24, tree);
+    gfx->fillCircle(x - 8, topY - 5, 16, treeDark);
+    gfx->fillCircle(x + 15, topY + 2, 18, treeDark);
   }
 
-  // Dunkle Bodenvegetation am Rand des Pfades: unregelmaessig und bewusst
-  // niedriger als der Spielbereich, damit Hindernisse klar lesbar bleiben.
-  for (int x = 0; x < 466; x += 31) {
+  // Unregelmaessiges Gras direkt am Wegesrand, aber niedrig genug,
+  // damit der Spielbereich nicht verdeckt wird.
+  for (int x = 5; x < 466; x += 38) {
     int base = groundYAt((int16_t)x);
-    int h = 9 + ((x * 5) % 15);
-    gfx->fillCircle(x, base - h, 10, undergrowth);
-    gfx->fillCircle(x + 9, base - h + 4, 8, undergrowth);
+    gfx->drawLine(x, base, x - 4, base - 10, grass);
+    gfx->drawLine(x + 4, base, x + 7, base - 13, grass);
+    gfx->drawLine(x + 8, base, x + 12, base - 8, grass);
   }
 
-  // Kleine Zweige/Laubspitzen am oberen Rand geben dem Wald mehr Tiefe.
-  for (int x = 34; x < 450; x += 83) {
-    int y = 108 + ((x * 5) % 42);
-    gfx->drawLine(x, y + 18, x + 24, y, trunk);
-    gfx->fillCircle(x + 27, y - 2, 10, tree);
-    gfx->fillCircle(x + 36, y + 4, 8, tree);
-  }
-
-  // Kleine bewegte Wolken nur dezent im offenen Himmel.
+  // Dezente Wolken.
   int cloud = (int)((millis() / 45) % 560) - 60;
   gfx->fillCircle(cloud, 82, 11, 0xFFFF);
   gfx->fillCircle(cloud + 16, 85, 9, 0xFFFF);
