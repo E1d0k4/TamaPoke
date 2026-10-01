@@ -558,7 +558,7 @@ static void drawHud() {
   y += 8 * (ts + 1) + 14;
 
   snprintf(buf, sizeof(buf), "SCORE: %04lu", (unsigned long)score);
-  textCentered(buf, cx, y, ts, WHITE);
+  textCentered(buf, cx, y, ts, TD_WHITE);
   y += 8 * ts + 8;
 
   snprintf(buf, sizeof(buf), "BEST: %04lu", (unsigned long)best);
