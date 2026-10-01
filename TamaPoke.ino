@@ -22,6 +22,7 @@
 #include "rtcbat.h"
 #include "i18n.h"
 #include "audio.h"
+#include "TamaDash.h"
 #include <Preferences.h>
 
 // Versiones: la original se conserva como referencia; la fork tiene su propia
@@ -347,7 +348,7 @@ void loop() {
   // volcado). Es la mayor carga evitable de la placa. Cada render repinta la
   // escena entera, asi que no queda nada a medias; y al quedarse lastRender
   // congelado, el primer frame tras despertar sale en el acto.
-  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen) ? 85 : 100)) {
+  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen || tamaDashOpen()) ? 85 : 100)) {
     lastRender = now;
     render();
   }
@@ -579,7 +580,7 @@ void openClock();  // prototipo
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (gameOpen || galleryOpen || kbOpen || sackOpen || pet.ceremony) return;
-  if (clockOpen) { clockOpen = false; return; }
+  if (clockOpen) { clockOpen = false; tamaDashResetEasterEgg(); return; }
   if (cardOpen) {
     if (dir < 0) cardOpen = false;  // arriba cierra la ficha
     return;
@@ -652,6 +653,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (clockOpen) {
     clockTap(x, y);
+    return;
+  }
+  if (tamaDashOpen()) {
+    if (tamaDashTap(x, y)) clockOpen = true;
     return;
   }
   if (pet.ceremony) return;  // durante la despedida no hay botones
@@ -1015,6 +1020,10 @@ void render() {
   }
   if (gameOpen) {
     renderGame();
+    return;
+  }
+  if (tamaDashOpen()) {
+    tamaDashRender();
     return;
   }
   if (sackOpen) {
@@ -1533,6 +1542,7 @@ static void drawSettingButton(int x, int y, const char *label) {
 // no hay que gestionar zona horaria. Preserva el dia (no rompe racha/edad).
 
 void openClock() {
+  tamaDashResetEasterEgg();
   uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   clockH = (e / 3600) % 24;
   clockM = (e / 60) % 60;
@@ -1540,6 +1550,7 @@ void openClock() {
 }
 
 void applyClock() {
+  tamaDashResetEasterEgg();
   uint32_t base = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   uint32_t e = (base / 86400) * 86400 + (uint32_t)clockH * 3600 + (uint32_t)clockM * 60;
   rtcSetEpoch(e);
@@ -1657,6 +1668,12 @@ void renderClock() {
 }
 
 void clockTap(int16_t x, int16_t y) {
+  // Easter Egg: fuenf schnelle Taps auf das bereits vorhandene Sonnen-Symbol.
+  // Die Helligkeitsbedienung selbst bleibt unveraendert.
+  if (tamaDashHandleSunTap(x, y)) {
+    if (tamaDashOpen()) clockOpen = false;
+    return;
+  }
   if (y >= 112 && y <= 170) {
     if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
     else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
