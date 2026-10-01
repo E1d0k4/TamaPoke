@@ -69,10 +69,16 @@ void jump() {
     resetRun();
     return;
   }
+
   if (onGround()) {
     gPlayerVY = -13.0f;
     sfxPlay(SFX_PLAY);
+    return;
   }
+
+  // Zweiter Tap waehrend des Sprungs: sofortiger Fast-Fall.
+  // Dadurch fuehlt sich die Steuerung direkter und arcade-artiger an.
+  gPlayerVY = 11.0f;
 }
 
 bool hitObstacle() {
@@ -153,13 +159,24 @@ void drawPlayer() {
 
 void drawObstacle() {
   uint16_t ink = rgb565(24, 28, 38);
-  uint16_t obstacle = rgb565(80, 145, 92);
+  uint16_t trunk = rgb565(154, 111, 72);
+  uint16_t leaf = rgb565(78, 156, 92);
+
   int x = (int)gObstacleX;
-  int top = GROUND_Y - 54;
-  gfx->fillRoundRect(x - 15, top, 30, 54, 8, obstacle);
-  gfx->drawRoundRect(x - 15, top, 30, 54, 8, ink);
-  gfx->fillRect(x - 7, top - 10, 6, 12, obstacle);
-  gfx->fillRect(x + 1, top - 5, 6, 7, obstacle);
+  int base = GROUND_Y;
+
+  // Kleiner Kaktus / Busch als klarere, weichere Pixel-Form.
+  gfx->fillRoundRect(x - 11, base - 48, 22, 48, 8, leaf);
+  gfx->fillRoundRect(x - 22, base - 38, 12, 24, 6, leaf);
+  gfx->fillRoundRect(x + 10, base - 31, 12, 21, 6, leaf);
+  gfx->fillRoundRect(x - 3, base - 53, 6, 8, 3, leaf);
+
+  gfx->drawRoundRect(x - 11, base - 48, 22, 48, 8, ink);
+  gfx->drawRoundRect(x - 22, base - 38, 12, 24, 6, ink);
+  gfx->drawRoundRect(x + 10, base - 31, 12, 21, 6, ink);
+
+  // Ein kleiner Stamm/Stein als zweite Silhouette, damit es weniger nach einem Block aussieht.
+  gfx->fillRoundRect(x - 16, base - 8, 32, 8, 4, trunk);
 }
 
 void drawScene() {
@@ -180,12 +197,24 @@ void drawScene() {
 
 void drawScore() {
   uint16_t ink = rgb565(24, 28, 38);
+  uint16_t panel = rgb565(248, 248, 238);
+
   char score[20];
+  char best[20];
   snprintf(score, sizeof(score), "SCORE: %04u", gScore);
+  snprintf(best, sizeof(best), "BEST:  %04u", gBest);
+
+  // Kleines, halbhohes Infopanel statt einer breiten Leiste.
+  // Der Spielbereich bleibt nahezu vollstaendig frei.
+  gfx->fillRoundRect(22, 54, 132, 62, 12, panel);
+  gfx->drawRoundRect(22, 54, 132, 62, 12, ink);
+
   gfx->setTextColor(ink);
-  gfx->setTextSize(2);
-  gfx->setCursor(52, 54);
+  gfx->setTextSize(1);
+  gfx->setCursor(35, 67);
   gfx->print(score);
+  gfx->setCursor(35, 91);
+  gfx->print(best);
 }
 
 void drawGameOver() {
