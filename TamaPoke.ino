@@ -1043,7 +1043,7 @@ void render() {
     return;
   }
   if (tamaDashActive()) {
-    if (!tamaDashRender()) clockOpen = true;
+    if (!tamaDashRender()) clockOpen = false;
     return;
   }
   if (sackOpen) {
