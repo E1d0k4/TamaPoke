@@ -10,7 +10,8 @@ extern Arduino_Canvas *gfx;
 namespace {
 constexpr int16_t CX = 233;
 constexpr int16_t CY = 233;
-constexpr int16_t GROUND_Y = 380;
+constexpr int16_t GROUND_CENTER_Y = 350;
+constexpr int16_t GROUND_CURVE = 800;
 constexpr int16_t PLAYER_X = 112;
 constexpr int16_t PLAYER_W = 38;
 constexpr int16_t PLAYER_H = 54;
@@ -24,7 +25,7 @@ bool gGameOver = false;
 uint8_t gEggTaps = 0;
 uint32_t gLastEggTap = 0;
 
-float gPlayerY = GROUND_Y;
+float gPlayerY = 0;
 float gPlayerVY = 0;
 float gObstacleX = 520;
 uint16_t gScore = 0;
@@ -53,15 +54,20 @@ void saveBest() {
 void resetRun() {
   gGameOver = false;
   gScore = 0;
-  gPlayerY = GROUND_Y;
+  gPlayerY = groundYAt(PLAYER_X);
   gPlayerVY = 0;
   gObstacleX = 520 + random(0, 90);
   gRunStart = millis();
   gLastStep = gRunStart;
 }
 
+int16_t groundYAt(int16_t x) {
+  const float dx = (float)x - CX;
+  return (int16_t)(GROUND_CENTER_Y + (dx * dx) / GROUND_CURVE);
+}
+
 bool onGround() {
-  return gPlayerY >= GROUND_Y;
+  return gPlayerY >= groundYAt(PLAYER_X);
 }
 
 void jump() {
@@ -89,10 +95,11 @@ bool hitObstacle() {
 
   const float obstacleLeft = gObstacleX - 15.0f;
   const float obstacleRight = gObstacleX + 15.0f;
-  const float obstacleTop = GROUND_Y - 54.0f;
+  const float obstacleGround = groundYAt((int16_t)gObstacleX);
+  const float obstacleTop = obstacleGround - 54.0f;
 
   return playerRight > obstacleLeft && playerLeft < obstacleRight &&
-         playerBottom > obstacleTop && playerTop < GROUND_Y;
+         playerBottom > obstacleTop && playerTop < obstacleGround;
 }
 
 void step() {
@@ -104,8 +111,9 @@ void step() {
 
   gPlayerVY += 0.72f * dt;
   gPlayerY += gPlayerVY * dt;
-  if (gPlayerY >= GROUND_Y) {
-    gPlayerY = GROUND_Y;
+  const float playerGround = groundYAt(PLAYER_X);
+  if (gPlayerY >= playerGround) {
+    gPlayerY = playerGround;
     gPlayerVY = 0;
   }
 
@@ -163,7 +171,7 @@ void drawObstacle() {
   uint16_t leaf = rgb565(78, 156, 92);
 
   int x = (int)gObstacleX;
-  int base = GROUND_Y;
+  int base = groundYAt((int16_t)gObstacleX);
 
   // Kleiner Kaktus / Busch als klarere, weichere Pixel-Form.
   gfx->fillRoundRect(x - 11, base - 48, 22, 48, 8, leaf);
@@ -185,8 +193,16 @@ void drawScene() {
   uint16_t ink = rgb565(24, 28, 38);
 
   gfx->fillCircle(CX, CY, 231, sky);
-  gfx->fillRect(0, GROUND_Y, 466, 466 - GROUND_Y, soil);
-  gfx->fillRect(0, GROUND_Y - 2, 466, 4, ink);
+
+  // Leicht gekruemmter Horizont: Tama laeuft sichtbar auf einem kleinen
+  // Planeten statt auf einer flachen Plattform.
+  for (int x = 0; x < 466; ++x) {
+    const int y = groundYAt(x);
+    if (y < 466) {
+      gfx->drawFastVLine(x, y, 466 - y, soil);
+      gfx->drawFastHLine(x, y, 1, ink);
+    }
+  }
 
   // Kleine bewegte Wolken fuer ein lebendigeres, aber bewusst schlichtes Feld.
   int cloud = (int)((millis() / 45) % 560) - 60;
@@ -204,16 +220,16 @@ void drawScore() {
   snprintf(score, sizeof(score), "SCORE: %04u", gScore);
   snprintf(best, sizeof(best), "BEST:  %04u", gBest);
 
-  // Kleines, halbhohes Infopanel statt einer breiten Leiste.
-  // Der Spielbereich bleibt nahezu vollstaendig frei.
-  gfx->fillRoundRect(22, 54, 132, 62, 12, panel);
-  gfx->drawRoundRect(22, 54, 132, 62, 12, ink);
+  // Kompaktes HUD oben mittig. Die beiden Werte stehen untereinander,
+  // ohne den eigentlichen Spielbereich mit einer grossen Leiste zu verdecken.
+  gfx->fillRoundRect(174, 54, 118, 62, 12, panel);
+  gfx->drawRoundRect(174, 54, 118, 62, 12, ink);
 
   gfx->setTextColor(ink);
   gfx->setTextSize(1);
-  gfx->setCursor(35, 67);
+  gfx->setCursor(200, 67);
   gfx->print(score);
-  gfx->setCursor(35, 91);
+  gfx->setCursor(200, 91);
   gfx->print(best);
 }
 
