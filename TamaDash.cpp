@@ -51,6 +51,11 @@ void saveBest() {
   p.end();
 }
 
+int16_t groundYAt(int16_t x) {
+  const float dx = (float)x - CX;
+  return (int16_t)(GROUND_CENTER_Y + (dx * dx) / GROUND_CURVE);
+}
+
 void resetRun() {
   gGameOver = false;
   gScore = 0;
@@ -59,11 +64,6 @@ void resetRun() {
   gObstacleX = 520 + random(0, 90);
   gRunStart = millis();
   gLastStep = gRunStart;
-}
-
-int16_t groundYAt(int16_t x) {
-  const float dx = (float)x - CX;
-  return (int16_t)(GROUND_CENTER_Y + (dx * dx) / GROUND_CURVE);
 }
 
 bool onGround() {
