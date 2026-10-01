@@ -11,10 +11,10 @@ namespace {
 constexpr int16_t CX = 233;
 constexpr int16_t CY = 233;
 constexpr int16_t GROUND_CENTER_Y = 350;
-constexpr int16_t GROUND_CURVE = 800;
+constexpr int16_t GROUND_CURVE = 1600;
 constexpr int16_t PLAYER_X = 112;
-constexpr int16_t PLAYER_W = 38;
-constexpr int16_t PLAYER_H = 54;
+constexpr int16_t PLAYER_W = 34;
+constexpr int16_t PLAYER_H = 46;
 constexpr int16_t BACK_X0 = 188;
 constexpr int16_t BACK_X1 = 278;
 constexpr int16_t BACK_Y1 = 76;
@@ -147,55 +147,77 @@ void drawBackArrow() {
 
 void drawPlayer() {
   uint16_t ink = rgb565(24, 28, 38);
-  uint16_t body = rgb565(245, 245, 245);
+  uint16_t fur = rgb565(204, 132, 72);
+  uint16_t belly = rgb565(244, 222, 184);
+  uint16_t ear = rgb565(232, 151, 92);
   int x = PLAYER_X;
   int bottom = (int)gPlayerY;
 
-  // Ein bewusst schlichtes eigenes Tama-Dash-Sprite:
-  // Dadurch bleibt das Easter Egg komplett unabhaengig von der normalen Pet-Logik.
-  gfx->fillRoundRect(x - 19, bottom - 42, 38, 38, 10, body);
-  gfx->drawRoundRect(x - 19, bottom - 42, 38, 38, 10, ink);
-  gfx->fillCircle(x - 7, bottom - 27, 3, ink);
-  gfx->fillCircle(x + 7, bottom - 27, 3, ink);
-  gfx->fillRect(x - 8, bottom - 16, 16, 3, ink);
+  // Kleiner Fuchs als eigenes Tama-Dash-Sprite.
+  // Kopf, spitze Ohren, Bauch und buschiger Schwanz ergeben eine klare Waldfigur.
+  gfx->fillRoundRect(x - 17, bottom - 37, 34, 31, 10, fur);
+  gfx->drawRoundRect(x - 17, bottom - 37, 34, 31, 10, ink);
 
-  // Beine geben dem Lauf eine kleine, sichtbare Animation.
-  int phase = ((millis() / 110) & 1) ? 4 : -4;
-  gfx->fillRoundRect(x - 13 + phase, bottom - 6, 8, 9, 3, ink);
-  gfx->fillRoundRect(x + 5 - phase, bottom - 6, 8, 9, 3, ink);
+  gfx->fillTriangle(x - 14, bottom - 35, x - 8, bottom - 48,
+                    x - 1, bottom - 36, fur);
+  gfx->fillTriangle(x + 1, bottom - 36, x + 8, bottom - 48,
+                    x + 14, bottom - 35, fur);
+  gfx->fillTriangle(x - 9, bottom - 37, x - 8, bottom - 43,
+                    x - 3, bottom - 37, ear);
+  gfx->fillTriangle(x + 3, bottom - 37, x + 8, bottom - 43,
+                    x + 9, bottom - 37, ear);
+
+  gfx->fillRoundRect(x - 8, bottom - 17, 16, 10, 5, belly);
+  gfx->fillCircle(x - 7, bottom - 26, 3, ink);
+  gfx->fillCircle(x + 7, bottom - 26, 3, ink);
+  gfx->fillCircle(x, bottom - 18, 2, ink);
+
+  int phase = ((millis() / 110) & 1) ? 3 : -3;
+  gfx->fillRoundRect(x - 11 + phase, bottom - 8, 7, 8, 3, ink);
+  gfx->fillRoundRect(x + 4 - phase, bottom - 8, 7, 8, 3, ink);
+
+  // Buschiger Schwanz hinter dem Koerper.
+  gfx->fillCircle(x + 19, bottom - 20, 11, fur);
+  gfx->fillCircle(x + 24, bottom - 20, 7, belly);
+  gfx->drawCircle(x + 19, bottom - 20, 11, ink);
 }
+
 
 void drawObstacle() {
   uint16_t ink = rgb565(24, 28, 38);
-  uint16_t trunk = rgb565(154, 111, 72);
-  uint16_t leaf = rgb565(78, 156, 92);
+  uint16_t trunk = rgb565(117, 82, 54);
+  uint16_t leaf = rgb565(72, 145, 82);
+  uint16_t berry = rgb565(191, 62, 76);
 
   int x = (int)gObstacleX;
   int base = groundYAt((int16_t)gObstacleX);
 
-  // Kleiner Kaktus / Busch als klarere, weichere Pixel-Form.
-  gfx->fillRoundRect(x - 11, base - 48, 22, 48, 8, leaf);
-  gfx->fillRoundRect(x - 22, base - 38, 12, 24, 6, leaf);
-  gfx->fillRoundRect(x + 10, base - 31, 12, 21, 6, leaf);
-  gfx->fillRoundRect(x - 3, base - 53, 6, 8, 3, leaf);
+  // Beerenbusch: niedrig und breit, damit der Spieler darueber springen kann.
+  gfx->fillCircle(x - 15, base - 13, 12, leaf);
+  gfx->fillCircle(x, base - 20, 16, leaf);
+  gfx->fillCircle(x + 15, base - 12, 12, leaf);
+  gfx->fillRoundRect(x - 19, base - 8, 38, 8, 4, trunk);
 
-  gfx->drawRoundRect(x - 11, base - 48, 22, 48, 8, ink);
-  gfx->drawRoundRect(x - 22, base - 38, 12, 24, 6, ink);
-  gfx->drawRoundRect(x + 10, base - 31, 12, 21, 6, ink);
-
-  // Ein kleiner Stamm/Stein als zweite Silhouette, damit es weniger nach einem Block aussieht.
-  gfx->fillRoundRect(x - 16, base - 8, 32, 8, 4, trunk);
+  gfx->fillCircle(x - 8, base - 19, 3, berry);
+  gfx->fillCircle(x + 6, base - 25, 3, berry);
+  gfx->fillCircle(x + 15, base - 12, 3, berry);
+  gfx->drawCircle(x - 15, base - 13, 12, ink);
+  gfx->drawCircle(x, base - 20, 16, ink);
+  gfx->drawCircle(x + 15, base - 12, 12, ink);
+  gfx->drawRoundRect(x - 19, base - 8, 38, 8, 4, ink);
 }
+
 
 void drawScene() {
   uint16_t sky = rgb565(220, 238, 230);
   uint16_t soil = rgb565(126, 192, 127);
   uint16_t ink = rgb565(24, 28, 38);
+  uint16_t tree = rgb565(74, 130, 76);
+  uint16_t trunk = rgb565(117, 82, 54);
 
   gfx->fillCircle(CX, CY, 231, sky);
 
-  // Leicht gekruemmter Horizont: Tama laeuft sichtbar auf einem kleinen
-  // Planeten statt auf einer flachen Plattform.
+  // Sanftere Planeten-Kruemmung: etwa halb so stark wie zuvor.
   for (int x = 0; x < 466; ++x) {
     const int y = groundYAt(x);
     if (y < 466) {
@@ -204,12 +226,23 @@ void drawScene() {
     }
   }
 
-  // Kleine bewegte Wolken fuer ein lebendigeres, aber bewusst schlichtes Feld.
+  // Waldkulisse: entfernte Baumkronen bleiben ruhig im Hintergrund.
+  for (int x = 20; x < 466; x += 92) {
+    int sway = ((millis() / 700 + x) % 8) - 4;
+    int top = 112 + (x % 24);
+    gfx->fillRoundRect(x + sway - 5, top + 38, 10, 70, 4, trunk);
+    gfx->fillCircle(x + sway, top + 25, 24, tree);
+    gfx->fillCircle(x + sway - 18, top + 38, 18, tree);
+    gfx->fillCircle(x + sway + 18, top + 38, 18, tree);
+  }
+
+  // Kleine bewegte Wolken.
   int cloud = (int)((millis() / 45) % 560) - 60;
-  gfx->fillCircle(cloud, 105, 13, 0xFFFF);
-  gfx->fillCircle(cloud + 18, 108, 10, 0xFFFF);
-  gfx->fillCircle(cloud - 15, 110, 9, 0xFFFF);
+  gfx->fillCircle(cloud, 82, 13, 0xFFFF);
+  gfx->fillCircle(cloud + 18, 85, 10, 0xFFFF);
+  gfx->fillCircle(cloud - 15, 87, 9, 0xFFFF);
 }
+
 
 void drawScore() {
   uint16_t ink = rgb565(24, 28, 38);
@@ -222,14 +255,14 @@ void drawScore() {
 
   // Kompaktes HUD oben mittig. Die beiden Werte stehen untereinander,
   // ohne den eigentlichen Spielbereich mit einer grossen Leiste zu verdecken.
-  gfx->fillRoundRect(174, 54, 118, 62, 12, panel);
-  gfx->drawRoundRect(174, 54, 118, 62, 12, ink);
+  gfx->fillRoundRect(164, 50, 138, 70, 12, panel);
+  gfx->drawRoundRect(164, 50, 138, 70, 12, ink);
 
   gfx->setTextColor(ink);
-  gfx->setTextSize(1);
-  gfx->setCursor(200, 67);
+  gfx->setTextSize(2);
+  gfx->setCursor(180, 65);
   gfx->print(score);
-  gfx->setCursor(200, 91);
+  gfx->setCursor(180, 95);
   gfx->print(best);
 }
 
