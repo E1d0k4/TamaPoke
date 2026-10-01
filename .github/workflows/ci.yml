@@ -5,6 +5,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   firmware:
     name: Compile firmware
@@ -81,9 +90,12 @@ jobs:
       - run: python3 tools/test_i18n_formats.py
 
   web-installer:
-    name: Build web installer
+    name: Build and deploy web installer
     runs-on: ubuntu-latest
     needs: firmware
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
@@ -104,6 +116,11 @@ jobs:
 
       - name: Build firmware and sprite bundle
         run: bash tools/build_web.sh
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload installer
         uses: actions/upload-pages-artifact@v3
