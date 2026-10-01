@@ -647,6 +647,7 @@ bool tamaDashHandleSunTap(int16_t x, int16_t y) {
   const int dy = y - 226;
   if (dx * dx + dy * dy > 34 * 34) {
     sunTaps = 0;
+    lastSunTapMs = 0;
     return false;
   }
 
@@ -657,34 +658,18 @@ bool tamaDashHandleSunTap(int16_t x, int16_t y) {
 
   lastSunTapMs = now;
 
-  if (++sunTaps >= TD_SUN_TAPS) {
-    sunTaps = 0;
-    lastSunTapMs = 0;
-
-    g = gfx;
-    W = (float)gfx->width();
-    H = (float)gfx->height();
-    sc = W / 466.0f;
-    cx = W / 2.0f;
-    R = 1.5f * W;
-    G = H * 0.64f;
-    foxX = W * 0.30f;
-
-    loadBest();
-    rngS ^= micros();
-    resetRun();
-
-    active = true;
-    lastMs = millis();
-    lastTapMs = 0;
-    return true;
+  ++sunTaps;
+  if (sunTaps < TD_SUN_TAPS) {
+    return false;
   }
 
+  sunTaps = 0;
+  lastSunTapMs = 0;
   return true;
 }
 
 void tamaDashTap(int16_t x, int16_t y) {
-  if (!active) return false;
+  if (!active) return;
 
   // Groessere unsichtbare Touchflaeche fuer den kleinen Pfeil.
   if (y < 66 * sc && fabsf(x - cx) < 55 * sc) {
