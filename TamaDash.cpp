@@ -56,6 +56,7 @@ static bool newBest = false;
 static uint32_t lastMs = 0;
 static uint32_t overMs = 0;
 static uint32_t lastTapMs = 0;
+static uint32_t lastFrameMs = 0;
 static uint32_t score = 0;
 static uint32_t best = 0;
 static uint32_t rngS = 2463534242u;
@@ -636,6 +637,7 @@ void tamaDashOpen() {
   resetRun();
   active = true;
   lastMs = millis();
+  lastFrameMs = lastMs;
   lastTapMs = 0;
 }
 
@@ -699,7 +701,11 @@ bool tamaDashRender() {
   }
 
   uint32_t now = millis();
-  if (now - lastMs < 16) return true;
+  // The main TamaPoke loop deliberately limits full-screen flushes to avoid
+  // overlapping QSPI/DMA transfers. Keep one authoritative frame timestamp
+  // here as well, so Tama Dash never renders twice for the same scheduler tick.
+  if (now == lastFrameMs) return true;
+  lastFrameMs = now;
 
   float dt = (now - lastMs) / 1000.0f;
   if (dt > 0.05f) dt = 0.05f;
