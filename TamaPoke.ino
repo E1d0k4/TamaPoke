@@ -348,7 +348,7 @@ void loop() {
   // volcado). Es la mayor carga evitable de la placa. Cada render repinta la
   // escena entera, asi que no queda nada a medias; y al quedarse lastRender
   // congelado, el primer frame tras despertar sale en el acto.
-  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen || tamaDashOpen()) ? 85 : 100)) {
+  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen || tamaDashActive()) ? 85 : 100)) {
     lastRender = now;
     render();
   }
@@ -655,8 +655,8 @@ void onTap(int16_t x, int16_t y) {
     clockTap(x, y);
     return;
   }
-  if (tamaDashOpen()) {
-    if (tamaDashTap(x, y)) clockOpen = true;
+  if (tamaDashActive()) {
+    tamaDashTap(x, y);
     return;
   }
   if (pet.ceremony) return;  // durante la despedida no hay botones
@@ -1022,8 +1022,8 @@ void render() {
     renderGame();
     return;
   }
-  if (tamaDashOpen()) {
-    tamaDashRender();
+  if (tamaDashActive()) {
+    if (!tamaDashRender()) clockOpen = true;
     return;
   }
   if (sackOpen) {
@@ -1671,7 +1671,7 @@ void clockTap(int16_t x, int16_t y) {
   // Easter Egg: fuenf schnelle Taps auf das bereits vorhandene Sonnen-Symbol.
   // Die Helligkeitsbedienung selbst bleibt unveraendert.
   if (tamaDashHandleSunTap(x, y)) {
-    if (tamaDashOpen()) clockOpen = false;
+    if (tamaDashActive()) clockOpen = false;
     return;
   }
   if (y >= 112 && y <= 170) {
