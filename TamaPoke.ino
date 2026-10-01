@@ -368,10 +368,18 @@ void saveUserBrightness() {
 }
 
 void updateBrightness(uint32_t now) {
-  // los eventos visibles despiertan la pantalla solos
-  if (pet.evolving() || pet.ceremony || pet.eating() || pet.showHeart()) {
+  // Tama Dash es un aktiver Vollbild-Spielmodus. Der normale AMOLED-
+  // Inaktivitaetsdimmer darf dort niemals eingreifen: Touches werden im
+  // eigenen Dash-Eingabepfad verarbeitet und aktualisieren bewusst nicht
+  // lastInteract, daher halten wir den Bildschirm hier explizit wach.
+  if (tamaDashActive()) {
+    lastInteract = now;
+    dimStage = 0;
+  } else if (pet.evolving() || pet.ceremony || pet.eating() || pet.showHeart()) {
+    // los eventos visibles despiertan la pantalla solos
     lastInteract = now;
   }
+
   uint32_t idle = now - lastInteract;
   dimStage = (idle > 300000) ? 2 : (idle > 90000) ? 1 : 0;
   const uint8_t normal = normalBrightnessTarget();
