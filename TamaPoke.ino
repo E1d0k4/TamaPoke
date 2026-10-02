@@ -1586,32 +1586,6 @@ static void drawSettingButton(int x, int y, const char *label) {
 // El usuario pone su hora LOCAL a ojo; el firmware la usa tal cual, asi que
 // no hay que gestionar zona horaria. Preserva el dia (no rompe racha/edad).
 
-void openClock() {
-  tamaDashResetEasterEgg();
-  uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
-  clockH = (e / 3600) % 24;
-  clockM = (e / 60) % 60;
-  clockOpen = true;
-}
-
-void applyClock() {
-  tamaDashResetEasterEgg();
-  uint32_t base = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
-  uint32_t e = (base / 86400) * 86400 + (uint32_t)clockH * 3600 + (uint32_t)clockM * 60;
-  rtcSetEpoch(e);
-  pet.setClock(e);
-  clockOpen = false;
-}
-
-void drawClockBtn(int x, int y, const char *l) {
-  gfx->fillRoundRect(x, y, 58, 58, 12, UI_WHITE);
-  gfx->drawRoundRect(x, y, 58, 58, 12, UI_INK);
-  gfx->setTextColor(UI_INK);
-  setSize(4);
-  setCur(x + 17, y + 15);
-  printT(l);
-}
-
 // pildoras de idioma centradas en y; rellena la activa
 #define LANG_PILL_Y 296
 #define LANG_PILL_H 30
