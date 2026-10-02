@@ -2029,8 +2029,10 @@ void settingsTap(int16_t x, int16_t y) {
   } else if (settingsPage == 4) {
     // Sprache: Pfeile direkt neben der aktuell aktiven Sprache.
     if (y >= 180 && y <= 235) {
-      if (x < CX) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
-      else setLang((Lang)((gLang + 1) % LANG_COUNT));
+      // Nur die beiden Pfeilbereiche wechseln die Sprache.
+      if (x >= 145 && x < 225) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
+      else if (x > 241 && x <= 321) setLang((Lang)((gLang + 1) % LANG_COUNT));
+      else return;
       applyLangFont(); sfxPlay(SFX_TAP); return;
     }
     if (y >= 390 && y <= 445) {
@@ -2561,7 +2563,7 @@ void drawHeader(const char *name, uint16_t nameColor, const char *msg) {
   // Die eigentliche Sprachwahl bleibt ausschliesslich im Einstellungen-Menue.
   gfx->setTextColor(inkColor());
   setSize(2);
-  setCur(24, 10);
+  setCur(410, 10);
   printT("A");
   gfx->setTextColor(nameColor);
   setSize(3);
