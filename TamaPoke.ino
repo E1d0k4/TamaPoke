@@ -79,7 +79,6 @@ uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
 bool clockOpen = false;       // pagina de ajuste de hora dentro de Einstellungen
 int clockH = 12, clockM = 0;  // hora en edicion
 bool settingsOpen = false;    // nueva pagina de inicio de ajustes
-uint32_t settingsLastInteract = 0; // actividad independiente del display-dimmer
 uint8_t settingsPage = 0;     // 0 home, 1 reloj, 2 brillo, 3 volumen, 4 idioma, 5 backup, 6 info
 uint8_t backupConfirm = 0; // 0 = none, 1 = restore, 2 = overwrite
 bool backupInfoDirty = true;
@@ -288,8 +287,6 @@ void ensureMon() {
   }
 }
 
-static constexpr uint32_t SETTINGS_IDLE_MS = 20000;
-
 void loop() {
   uint32_t now = millis();
   pet.update(now);
@@ -314,15 +311,6 @@ void loop() {
   handleTouch();
   handleSerial();
 
-  // Temporizador propio de ajustes: no comparte lastInteract con el dimmer.
-  if (settingsOpen && now - settingsLastInteract >= SETTINGS_IDLE_MS) {
-    settingsOpen = false;
-    settingsPage = 0;
-    clockOpen = false;
-    backupConfirm = 0;
-    backupStatus = 0;
-    tamaDashResetEasterEgg();
-  }
   ensureMon();
 
   // pulsacion corta del PWR: pantalla on/off
@@ -1676,7 +1664,6 @@ static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
 void openSettings() {
   tamaDashResetEasterEgg();
   lastInteract = millis();
-  settingsLastInteract = millis();
   settingsOpen = true;
   settingsPage = 0;
   clockOpen = false;
@@ -1686,7 +1673,6 @@ void openSettings() {
 void openClock() {
   tamaDashResetEasterEgg();
   lastInteract = millis();
-  settingsLastInteract = millis();
   uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   clockH = (e / 3600) % 24;
   clockM = (e / 60) % 60;
@@ -2004,7 +1990,6 @@ void renderInfo() {
 }
 
 void settingsTap(int16_t x, int16_t y) {
-  settingsLastInteract = millis();
   if (settingsPage == 0) {
     if (y >= 378 && y <= 430 && x >= 72 && x <= 396) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
     if (y >= 82 && y < 198) {
