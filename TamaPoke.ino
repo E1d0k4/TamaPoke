@@ -75,8 +75,13 @@ bool kbOpen = false;          // teclado para renombrar al bicho
 char nameBuf[12] = "";
 uint8_t nameLen = 0;
 uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
-bool clockOpen = false;       // pantalla de ajuste de hora (deslizar abajo)
+bool clockOpen = false;       // pagina de ajuste de hora dentro de Einstellungen
 int clockH = 12, clockM = 0;  // hora en edicion
+bool settingsOpen = false;    // nueva pagina de inicio de ajustes
+uint8_t settingsPage = 0;     // 0 home, 1 reloj, 2 brillo, 3 volumen, 4 idioma, 5 backup, 6 info
+bool backupConfirm = false;
+uint8_t backupStatus = 0;     // 1 = backup ok, 2 = backup fail, 3 = restore ok, 4 = restore fail
+uint32_t backupStatusUntil = 0;
 
 // ajustes persistentes de la fork
 uint8_t userBrightness = 100;  // 10..100 %, brillo normal configurado
@@ -600,13 +605,19 @@ void openClock();  // prototipo
 void onSwipeV(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
   if (gameOpen || galleryOpen || kbOpen || sackOpen || pet.ceremony) return;
+  if (settingsOpen) {
+    if (settingsPage == 0) settingsOpen = false;
+    else { settingsPage = 0; clockOpen = false; backupConfirm = false; }
+    tamaDashResetEasterEgg();
+    return;
+  }
   if (clockOpen) { clockOpen = false; tamaDashResetEasterEgg(); return; }
   if (cardOpen) {
     if (dir < 0) cardOpen = false;  // arriba cierra la ficha
     return;
   }
-  if (dir > 0) {                    // deslizar abajo: ajustar hora
-    if (!confirmUntil && !feedMenuUntil) openClock();
+  if (dir > 0) {                    // deslizar abajo: Einstellungen oeffnen
+    if (!confirmUntil && !feedMenuUntil) openSettings();
   } else if (!pet.isEgg() && !confirmUntil && !feedMenuUntil) {
     cardOpen = true;                // deslizar arriba: ficha
     cardPage = 0;
@@ -669,6 +680,10 @@ void onTap(int16_t x, int16_t y) {
   }
   if (kbOpen) {
     keyboardTap(x, y);
+    return;
+  }
+  if (settingsOpen) {
+    settingsTap(x, y);
     return;
   }
   if (clockOpen) {
@@ -1052,6 +1067,16 @@ void render() {
   }
   if (kbOpen) {
     renderKeyboard();
+    return;
+  }
+  if (settingsOpen) {
+    if (settingsPage == 0) renderSettingsHome();
+    else if (settingsPage == 1) renderClock();
+    else if (settingsPage == 2) renderBrightness();
+    else if (settingsPage == 3) renderVolume();
+    else if (settingsPage == 4) renderLanguage();
+    else if (settingsPage == 5) renderBackup();
+    else renderInfo();
     return;
   }
   if (clockOpen) {
@@ -1594,163 +1619,401 @@ void drawClockBtn(int x, int y, const char *l) {
 #define LANG_PILL_W 96
 static const char *const LANG_CODES[LANG_COUNT] = { "ES", "EN", "FR", "DE", "IT", "PT", "JA", "KO" };
 
+static void drawClockIcon(int cx, int cy, uint16_t col) {
+  gfx->drawCircle(cx, cy, 24, col);
+  gfx->drawLine(cx, cy, cx, cy - 13, col);
+  gfx->drawLine(cx, cy, cx + 11, cy + 8, col);
+  gfx->fillCircle(cx, cy, 3, col);
+}
+
+static void drawLanguageIcon(int cx, int cy, uint16_t col) {
+  gfx->setTextColor(col);
+  setSize(6);
+  setCur(cx - 17, cy - 24);
+  printT("A");
+  gfx->drawLine(cx - 18, cy + 19, cx + 18, cy + 19, col);
+}
+
+static void drawBackupIcon(int cx, int cy, uint16_t col) {
+  gfx->drawRoundRect(cx - 22, cy - 26, 44, 52, 7, col);
+  gfx->fillRect(cx - 11, cy - 21, 22, 12, col);
+  gfx->fillRoundRect(cx - 11, cy + 5, 22, 12, 4, col);
+  gfx->drawLine(cx - 7, cy + 24, cx + 7, cy + 24, col);
+}
+
+static void drawInfoIcon(int cx, int cy, uint16_t col) {
+  gfx->drawCircle(cx, cy, 24, col);
+  gfx->fillCircle(cx, cy - 9, 3, col);
+  gfx->fillRoundRect(cx - 3, cy - 2, 6, 19, 2, col);
+}
+
+static void drawSettingsBack(int cx, int cy, uint16_t col) {
+  gfx->drawLine(cx + 14, cy, cx - 12, cy, col);
+  gfx->drawLine(cx - 12, cy, cx - 2, cy - 10, col);
+  gfx->drawLine(cx - 12, cy, cx - 2, cy + 10, col);
+}
+
+static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
+  gfx->fillRoundRect(x, y, 126, 116, 18, UI_WHITE);
+  gfx->drawRoundRect(x, y, 126, 116, 18, UI_INK);
+  int cx = x + 63, cy = y + 48;
+  if (kind == 0) drawClockIcon(cx, cy, UI_INK);
+  else if (kind == 1) drawSunIcon(cx, cy, UI_INK);
+  else if (kind == 2) drawSpeakerIcon(cx, cy, UI_INK);
+  else if (kind == 3) drawLanguageIcon(cx, cy, UI_INK);
+  else if (kind == 4) drawBackupIcon(cx, cy, UI_INK);
+  else drawInfoIcon(cx, cy, UI_INK);
+  setSize(2);
+  gfx->setTextColor(UI_INK);
+  setCur(cx - textW(label, 2) / 2, y + 94);
+  printT(label);
+}
+
+void openSettings() {
+  tamaDashResetEasterEgg();
+  settingsOpen = true;
+  settingsPage = 0;
+  clockOpen = false;
+  backupConfirm = false;
+}
+
+void openClock() {
+  tamaDashResetEasterEgg();
+  uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
+  clockH = (e / 3600) % 24;
+  clockM = (e / 60) % 60;
+  settingsOpen = true;
+  settingsPage = 1;
+  clockOpen = true;
+  backupConfirm = false;
+}
+
+void applyClock() {
+  tamaDashResetEasterEgg();
+  uint32_t base = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
+  uint32_t e = (base / 86400) * 86400 + (uint32_t)clockH * 3600 + (uint32_t)clockM * 60;
+  rtcSetEpoch(e);
+  pet.setClock(e);
+  clockOpen = false;
+  settingsPage = 0;
+  settingsOpen = true;
+}
+
+void drawClockBtn(int x, int y, const char *l) {
+  gfx->fillRoundRect(x, y, 58, 58, 12, UI_WHITE);
+  gfx->drawRoundRect(x, y, 58, 58, 12, UI_INK);
+  gfx->setTextColor(UI_INK);
+  setSize(4);
+  setCur(x + 17, y + 15);
+  printT(l);
+}
+
+void renderSettingsHome() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("EINSTELLUNGEN", 3), 28);
+  printT("EINSTELLUNGEN");
+
+  drawSettingsTile(48, 72, 0, "UHR");
+  drawSettingsTile(170, 72, 1, "HELL");
+  drawSettingsTile(292, 72, 2, "TON");
+  drawSettingsTile(48, 218, 3, "SPRACHE");
+  drawSettingsTile(170, 218, 4, "BACKUP");
+  drawSettingsTile(292, 218, 5, "INFO");
+
+  drawSettingsBack(38, 42, UI_INK);
+  gfx->flush();
+}
+
 void renderClock() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
-  // Die obere Beschriftung sitzt innerhalb der sichtbaren Kreisfläche.
-  // Bei "Zeit stellen" wurden die Randbuchstaben am oberen Kreisrand angeschnitten.
   setSize(3);
-  const char *setTimeLabel = T(S_SET_TIME);
-  int setTimeSize = (textW(setTimeLabel, 3) <= 300) ? 3 : 2;
-  setSize(setTimeSize);
-  setCur(centerX(setTimeLabel, setTimeSize), 28);
-  printT(setTimeLabel);
+  setCur(centerX(T(S_SET_TIME), 3), 34);
+  printT(T(S_SET_TIME));
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
   setSize(6);
-  setCur(CX - 90, 52);
+  setCur(CX - 90, 78);
   printT(t);
 
-  drawClockBtn(104, 112, "-");
-  drawClockBtn(170, 112, "+");
-  drawClockBtn(252, 112, "-");
-  drawClockBtn(318, 112, "+");
+  drawClockBtn(104, 145, "-");
+  drawClockBtn(170, 145, "+");
+  drawClockBtn(252, 145, "-");
+  drawClockBtn(318, 145, "+");
   setSize(2);
   gfx->setTextColor(UI_TRACK);
-  setCur(120, 178);
+  setCur(120, 211);
   printT(T(S_HOUR));
-  setCur(276, 178);
+  setCur(276, 211);
   printT(T(S_MIN));
 
-  // Fork-Einstellungen direkt in dieser vorhandenen Einstellungsseite.
-  drawSunIcon(72, 226, UI_INK);
-  char b[8];
-  snprintf(b, sizeof(b), "%u%%", userBrightness);
-  setSize(3);
-  gfx->setTextColor(UI_INK);
-  setCur(122, 215);
-  printT(b);
-  drawSettingButton(214, 200, "-");
-  drawSettingButton(290, 200, "+");
-
-  drawSpeakerIcon(72, 282, UI_INK);
-  char v[8];
-  snprintf(v, sizeof(v), "%u%%", audioVolume());
-  setSize(3);
-  gfx->setTextColor(UI_INK);
-  setCur(122, 271);
-  printT(v);
-  drawSettingButton(214, 256, "-");
-  drawSettingButton(290, 256, "+");
-
-  // Sound + Sprache bleiben ebenfalls auf derselben Seite.
-  bool snd = audioEnabled();
-  const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
-  gfx->fillRoundRect(34, 314, 120, 30, 8, snd ? UI_BAR_OK : UI_WHITE);
-  gfx->drawRoundRect(34, 314, 120, 30, 8, UI_INK);
-  gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
-  setSize(2);
-  setCur(34 + (120 - textW(sl, 2)) / 2, 321);
-  printT(sl);
-
-  gfx->fillRoundRect(LANG_PILL_X, 314, LANG_PILL_W, 30, 8, UI_WHITE);
-  gfx->drawRoundRect(LANG_PILL_X, 314, LANG_PILL_W, 30, 8, UI_INK);
-  char lp[10];
-  snprintf(lp, sizeof(lp), "%s >", LANG_CODES[gLang]);
-  gfx->setTextColor(UI_INK);
-  setSize(2);
-  setCur(LANG_PILL_X + (LANG_PILL_W - textW(lp, 2)) / 2, 321);
-  printT(lp);
-
-  gfx->fillRoundRect(133, 358, 200, 42, 14, UI_BAR_OK);
+  gfx->fillRoundRect(70, 330, 150, 54, 14, UI_WHITE);
+  gfx->drawRoundRect(70, 330, 150, 54, 14, UI_INK);
+  drawSettingsBack(145, 357, UI_INK);
+  gfx->fillRoundRect(246, 330, 150, 54, 14, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(CX - 18, 368);
+  setCur(300, 343);
   printT("OK");
-
-  // Separate version area: two short rows stay fully inside the visible
-  // circular area, including the version numbers.
-  gfx->fillRoundRect(96, 404, 274, 48, 10, UI_WHITE);
-  gfx->drawRoundRect(96, 404, 274, 48, 10, UI_INK);
-  gfx->setTextColor(UI_INK);
-  setSize(2);
-  char verOriginal[24];
-  char verFork[24];
-  snprintf(verOriginal, sizeof(verOriginal), "Original: %s", ORIGINAL_VERSION);
-  snprintf(verFork, sizeof(verFork), "Fork: %s", FORK_VERSION);
-  setCur(centerX(verOriginal, 2), 408);
-  printT(verOriginal);
-  setCur(centerX(verFork, 2), 428);
-  printT(verFork);
   gfx->flush();
 }
 
+void renderBrightness() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("HELLIGKEIT", 3), 30);
+  printT("HELLIGKEIT");
+  drawSunIcon(CX, 140, UI_INK);
+  char b[8];
+  snprintf(b, sizeof(b), "%u%%", userBrightness);
+  setSize(6);
+  setCur(CX - 48, 190);
+  printT(b);
+  drawSettingButton(104, 290, "-");
+  drawSettingButton(304, 290, "+");
+  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_WHITE);
+  gfx->drawRoundRect(72, 370, 140, 48, 12, UI_INK);
+  drawSettingsBack(142, 394, UI_INK);
+  gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(304, 381);
+  printT("OK");
+  gfx->flush();
+}
+
+void renderVolume() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("LAUTSTAERKE", 3), 30);
+  printT("LAUTSTAERKE");
+  drawSpeakerIcon(CX, 140, UI_INK);
+  char v[8];
+  snprintf(v, sizeof(v), "%u%%", audioVolume());
+  setSize(6);
+  setCur(CX - 48, 190);
+  printT(v);
+  drawSettingButton(104, 290, "-");
+  drawSettingButton(304, 290, "+");
+  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_WHITE);
+  gfx->drawRoundRect(72, 370, 140, 48, 12, UI_INK);
+  drawSettingsBack(142, 394, UI_INK);
+  gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(304, 381);
+  printT("OK");
+  gfx->flush();
+}
+
+void renderLanguage() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("SPRACHE", 3), 30);
+  printT("SPRACHE");
+  drawLanguageIcon(CX, 140, UI_INK);
+  setSize(5);
+  char lp[12];
+  snprintf(lp, sizeof(lp), "%s", LANG_CODES[gLang]);
+  setCur(centerX(lp, 5), 190);
+  printT(lp);
+
+  gfx->fillRoundRect(104, 285, 258, 56, 14, UI_WHITE);
+  gfx->drawRoundRect(104, 285, 258, 56, 14, UI_INK);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(126, 300);
+  printT("<");
+  setCur(330, 300);
+  printT(">");
+
+  bool snd = audioEnabled();
+  const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
+  gfx->fillRoundRect(92, 350, 282, 36, 10, snd ? UI_BAR_OK : UI_WHITE);
+  gfx->drawRoundRect(92, 350, 282, 36, 10, UI_INK);
+  gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
+  setSize(2);
+  setCur(92 + (282 - textW(sl, 2)) / 2, 362);
+  printT(sl);
+
+  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
+  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
+  drawSettingsBack(142, 424, UI_INK);
+  gfx->fillRoundRect(254, 400, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(304, 411);
+  printT("OK");
+  gfx->flush();
+}
+
+void renderBackup() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("BACKUP", 3), 30);
+  printT("BACKUP");
+  drawBackupIcon(CX, 122, UI_INK);
+
+  gfx->fillRoundRect(62, 195, 342, 62, 14, UI_BAR_OK);
+  gfx->fillRoundRect(62, 274, 342, 62, 14, UI_BAR_WARN);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(128, 212);
+  printT("SICHERN");
+  setCur(116, 291);
+  printT("RESTORE");
+
+  if (backupStatusUntil && millis() > backupStatusUntil) backupStatus = 0;
+  if (backupStatus) {
+    const char *s = backupStatus == 1 ? "BACKUP OK" :
+                    backupStatus == 2 ? "BACKUP FEHLER" :
+                    backupStatus == 3 ? "RESTORE OK" : "RESTORE FEHLER";
+    gfx->setTextColor(backupStatus == 1 || backupStatus == 3 ? UI_BAR_OK : UI_BAR_BAD);
+    setSize(2);
+    setCur(centerX(s, 2), 350);
+    printT(s);
+  }
+
+  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
+  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
+  drawSettingsBack(142, 424, UI_INK);
+  gfx->flush();
+}
+
+void renderInfo() {
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
+  gfx->setTextColor(UI_INK);
+  setSize(3);
+  setCur(centerX("INFO", 3), 34);
+  printT("INFO");
+  setSize(2);
+  char o[24], f[24];
+  snprintf(o, sizeof(o), "Original: %s", ORIGINAL_VERSION);
+  snprintf(f, sizeof(f), "Fork: %s", FORK_VERSION);
+  setCur(centerX(o, 2), 120); printT(o);
+  setCur(centerX(f, 2), 150); printT(f);
+  setCur(centerX("SD BACKUP: /tamapoke_backup.bin", 2), 205); printT("SD BACKUP: /tamapoke_backup.bin");
+  setCur(centerX("TamaPoke", 2), 260); printT("TamaPoke");
+  setCur(centerX("ESP32-S3 / 466x466", 2), 290); printT("ESP32-S3 / 466x466");
+  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
+  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
+  drawSettingsBack(142, 424, UI_INK);
+  gfx->flush();
+}
+
+void settingsTap(int16_t x, int16_t y) {
+  if (settingsPage == 0) {
+    if (x >= 10 && x <= 90 && y <= 75) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
+    if (y >= 72 && y < 188) {
+      if (x >= 48 && x < 174) { openClock(); return; }
+      if (x >= 170 && x < 296) { settingsPage = 2; return; }
+      if (x >= 292 && x < 418) { settingsPage = 3; return; }
+    }
+    if (y >= 218 && y < 334) {
+      if (x >= 48 && x < 174) { settingsPage = 4; return; }
+      if (x >= 170 && x < 296) { settingsPage = 5; backupConfirm = false; return; }
+      if (x >= 292 && x < 418) { settingsPage = 6; return; }
+    }
+    return;
+  }
+
+  if (y < 72 && x < 100) {
+    settingsPage = 0; clockOpen = false; backupConfirm = false; tamaDashResetEasterEgg(); return;
+  }
+
+  if (settingsPage == 1) {
+    if (y >= 145 && y <= 203) {
+      if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
+      else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
+      else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
+      else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
+      return;
+    }
+    if (y >= 330 && y <= 390) {
+      if (x >= 246 && x <= 396) { applyClock(); return; }
+      if (x >= 70 && x < 220) { settingsPage = 0; clockOpen = false; return; }
+    }
+  } else if (settingsPage == 2) {
+    if (tamaDashHandleSunTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
+    if (y >= 290 && y <= 348) {
+      if (x >= 104 && x < 190) userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
+      else if (x >= 304 && x < 390) userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
+      else return;
+      saveUserBrightness(); lastInteract = millis(); updateBrightness(millis()); sfxPlay(SFX_TAP); return;
+    }
+    if (y >= 370 && y <= 430) {
+      if (x >= 254) { settingsPage = 0; return; }
+      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    }
+  } else if (settingsPage == 3) {
+    if (y >= 290 && y <= 348) {
+      if (x >= 104 && x < 190) audioSetVolume(audioVolume() <= 10 ? 10 : audioVolume() - 10);
+      else if (x >= 304 && x < 390) audioSetVolume(audioVolume() >= 100 ? 100 : audioVolume() + 10);
+      else return;
+      sfxPlay(SFX_TAP); return;
+    }
+    if (y >= 370 && y <= 430) {
+      if (x >= 254) { settingsPage = 0; return; }
+      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    }
+  } else if (settingsPage == 4) {
+    if (y >= 285 && y <= 341) {
+      if (x < 220) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
+      else if (x > 290) setLang((Lang)((gLang + 1) % LANG_COUNT));
+      applyLangFont(); sfxPlay(SFX_TAP); return;
+    }
+    if (y >= 350 && y <= 390) {
+      audioSetEnabled(!audioEnabled()); if (audioEnabled()) sfxPlay(SFX_TAP); return;
+    }
+    if (y >= 400 && y <= 455) {
+      if (x >= 254) { settingsPage = 0; return; }
+      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    }
+  } else if (settingsPage == 5) {
+    if (backupConfirm) {
+      if (y >= 350 && y <= 430 && x >= 254) {
+        backupConfirm = false;
+        bool ok = pet.restoreFromSD();
+        if (ok) {
+          userBrightness = Preferences().getUChar("bright", userBrightness); // overwritten below by explicit load
+          audioSetEnabled(Preferences().getBool("snd", audioEnabled()));
+        }
+        backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
+        return;
+      }
+      if (y >= 350 && y <= 430 && x >= 72 && x < 212) { backupConfirm = false; return; }
+      return;
+    }
+    if (y >= 195 && y <= 257) {
+      bool ok = pet.backupToSD();
+      backupStatus = ok ? 1 : 2; backupStatusUntil = millis() + 2500;
+      return;
+    }
+    if (y >= 274 && y <= 336) {
+      backupConfirm = true; return;
+    }
+    if (y >= 400 && y <= 455) { settingsPage = 0; return; }
+  } else if (settingsPage == 6) {
+    if (y >= 400 && y <= 455) { settingsPage = 0; return; }
+  }
+}
+
 void clockTap(int16_t x, int16_t y) {
-  // Easter Egg: fuenf schnelle Taps auf das bereits vorhandene Sonnen-Symbol.
-  // Die Helligkeitsbedienung selbst bleibt unveraendert.
-  if (tamaDashHandleSunTap(x, y)) {
-    tamaDashOpen();
-    clockOpen = false;
-    return;
-  }
-  if (y >= 112 && y <= 170) {
-    if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
-    else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
-    else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
-    else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
-    return;
-  }
-  if (y >= 200 && y <= 252) {
-    if (x >= 214 && x < 276) {
-      userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
-      saveUserBrightness();
-      lastInteract = millis();
-      updateBrightness(millis());
-      sfxPlay(SFX_TAP);
-      return;
-    }
-    if (x >= 290 && x < 352) {
-      userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
-      saveUserBrightness();
-      lastInteract = millis();
-      updateBrightness(millis());
-      sfxPlay(SFX_TAP);
-      return;
-    }
-  }
-  if (y >= 256 && y <= 308) {
-    if (x >= 214 && x < 276) {
-      uint8_t v = audioVolume();
-      audioSetVolume(v <= 10 ? 10 : v - 10);
-      sfxPlay(SFX_TAP);
-      return;
-    }
-    if (x >= 290 && x < 352) {
-      uint8_t v = audioVolume();
-      audioSetVolume(v >= 100 ? 100 : v + 10);
-      sfxPlay(SFX_TAP);
-      return;
-    }
-  }
-  if (y >= 314 && y <= 344) {
-    if (x >= 34 && x < 154) {
-      audioSetEnabled(!audioEnabled());
-      if (audioEnabled()) sfxPlay(SFX_TAP);
-      return;
-    }
-    if (x >= LANG_PILL_X && x < LANG_PILL_X + LANG_PILL_W) {
-      setLang((Lang)((gLang + 1) % LANG_COUNT));
-      applyLangFont();
-      sfxPlay(SFX_TAP);
-      return;
-    }
-  }
-  if (y >= 358 && y <= 400 && x >= 133 && x <= 333) {
-    applyClock();
-    return;
-  }
+  settingsTap(x, y);
 }
 
 // llama + numero de racha arriba a la izquierda
