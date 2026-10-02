@@ -28,7 +28,7 @@
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
 #define ORIGINAL_VERSION "1.17"
-#define FORK_VERSION "0.2.5"
+#define FORK_VERSION "0.2.6"
 #define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
@@ -1837,51 +1837,73 @@ void renderBackup() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("BACKUP", 3), 30);
-  printT("BACKUP");
-  drawBackupIcon(CX, 122, UI_INK);
+  setCur(centerX("SPIELSTAENDE", 3), 30);
+  printT("SPIELSTAENDE");
+  drawBackupIcon(CX, 100, UI_INK);
 
   if (backupConfirm) {
-    gfx->fillRoundRect(72, 188, 322, 210, 18, UI_WHITE);
-    gfx->drawRoundRect(72, 188, 322, 210, 18, UI_INK);
+    gfx->fillRoundRect(48, 166, 370, 238, 18, UI_WHITE);
+    gfx->drawRoundRect(48, 166, 370, 238, 18, UI_INK);
     gfx->setTextColor(UI_INK);
     setSize(3);
-    setCur(centerX("RESTORE?", 3), 218);
+    char q[24];
+    snprintf(q, sizeof(q), "RESTORE %u?", backupSlot);
+    setCur(centerX(q, 3), 198);
     setSize(2);
-    setCur(centerX("SPIELSTAND ERSETZEN", 2), 258);
-    gfx->fillRoundRect(82, 315, 125, 58, 12, UI_BAR_BAD);
-    gfx->fillRoundRect(259, 315, 125, 58, 12, UI_BAR_OK);
+    setCur(centerX("SPIELSTAND ERSETZEN", 2), 238);
+    gfx->fillRoundRect(70, 305, 140, 58, 12, UI_BAR_BAD);
+    gfx->fillRoundRect(256, 305, 140, 58, 12, UI_BAR_OK);
     gfx->setTextColor(UI_BG_DAY);
     setSize(3);
-    setCur(120, 330); printT("NEIN");
-    setCur(302, 330); printT("JA");
+    setCur(116, 320); printT("NEIN");
+    setCur(300, 320); printT("JA");
     gfx->flush();
     return;
   }
 
-  gfx->fillRoundRect(62, 195, 342, 62, 14, UI_BAR_OK);
-  gfx->fillRoundRect(62, 274, 342, 62, 14, UI_BAR_WARN);
+  gfx->setTextColor(UI_INK);
+  setSize(2);
+  setCur(centerX("3 SPEICHERPLAETZE", 2), 142);
+  printT("3 SPEICHERPLAETZE");
+
+  for (uint8_t i = 1; i <= 3; i++) {
+    int x = 48 + (i - 1) * 126;
+    bool used = pet.backupSlotExists(i);
+    gfx->fillRoundRect(x, 168, 114, 112, 16, i == backupSlot ? UI_BAR_OK : UI_WHITE);
+    gfx->drawRoundRect(x, 168, 114, 112, 16, UI_INK);
+    gfx->setTextColor(i == backupSlot ? UI_BG_DAY : UI_INK);
+    setSize(4);
+    char n[4];
+    snprintf(n, sizeof(n), "%u", i);
+    setCur(x + 49, 181);
+    printT(n);
+    setSize(2);
+    const char *state = used ? "BELEGT" : "LEER";
+    setCur(x + 57 - textW(state, 2) / 2, 238);
+    printT(state);
+  }
+
+  gfx->fillRoundRect(62, 300, 342, 58, 14, UI_BAR_OK);
+  gfx->fillRoundRect(62, 370, 342, 58, 14, UI_BAR_WARN);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(128, 212);
+  setCur(centerX("SICHERN", 3), 316);
   printT("SICHERN");
-  setCur(116, 291);
+  setCur(centerX("RESTORE", 3), 386);
   printT("RESTORE");
 
   if (backupStatusUntil && millis() > backupStatusUntil) backupStatus = 0;
   if (backupStatus) {
-    const char *s = backupStatus == 1 ? "BACKUP OK" :
-                    backupStatus == 2 ? "BACKUP FEHLER" :
-                    backupStatus == 3 ? "RESTORE OK" : "RESTORE FEHLER";
+    const char *msg = backupStatus == 1 ? "SAVE OK" :
+                     backupStatus == 2 ? "SAVE FEHLER" :
+                     backupStatus == 3 ? "RESTORE OK" : "RESTORE FEHLER";
     gfx->setTextColor(backupStatus == 1 || backupStatus == 3 ? UI_BAR_OK : UI_BAR_BAD);
     setSize(2);
-    setCur(centerX(s, 2), 350);
-    printT(s);
+    setCur(centerX(msg, 2), 438);
+    printT(msg);
   }
 
-  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
-  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
-  drawSettingsBack(142, 424, UI_INK);
+  drawSettingsBack(38, 42, UI_INK);
   gfx->flush();
 }
 
@@ -1898,7 +1920,7 @@ void renderInfo() {
   snprintf(f, sizeof(f), "Fork: %s", FORK_VERSION);
   setCur(centerX(o, 2), 120); printT(o);
   setCur(centerX(f, 2), 150); printT(f);
-  setCur(centerX("SD BACKUP: /tamapoke_backup.bin", 2), 205); printT("SD BACKUP: /tamapoke_backup.bin");
+  setCur(centerX("SD SAVE SLOTS: 1 / 2 / 3", 2), 205); printT("SD BACKUP: /tamapoke_backup.bin");
   setCur(centerX("TamaPoke", 2), 260); printT("TamaPoke");
   setCur(centerX("ESP32-S3 / 466x466", 2), 290); printT("ESP32-S3 / 466x466");
   gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
@@ -1977,9 +1999,9 @@ void settingsTap(int16_t x, int16_t y) {
     }
   } else if (settingsPage == 5) {
     if (backupConfirm) {
-      if (y >= 315 && y <= 375 && x >= 254) {
+      if (y >= 305 && y <= 375 && x >= 256) {
         backupConfirm = false;
-        bool ok = pet.restoreFromSD();
+        bool ok = pet.restoreFromSD(backupSlot);
         if (ok) {
           Preferences p;
           p.begin("tamapoke", true);
@@ -1994,19 +2016,30 @@ void settingsTap(int16_t x, int16_t y) {
         backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
         return;
       }
-      if (y >= 315 && y <= 375 && x >= 72 && x < 212) { backupConfirm = false; return; }
+      if (y >= 305 && y <= 375 && x >= 70 && x < 210) { backupConfirm = false; return; }
       return;
     }
-    if (y >= 195 && y <= 257) {
-      bool ok = pet.backupToSD();
+
+    if (y >= 168 && y <= 280) {
+      if (x >= 48 && x < 162) backupSlot = 1;
+      else if (x >= 174 && x < 288) backupSlot = 2;
+      else if (x >= 300 && x < 414) backupSlot = 3;
+      return;
+    }
+    if (y >= 300 && y <= 358) {
+      bool ok = pet.backupToSD(backupSlot);
       backupStatus = ok ? 1 : 2; backupStatusUntil = millis() + 2500;
       return;
     }
-    if (y >= 274 && y <= 336) {
-      backupConfirm = true; return;
+    if (y >= 370 && y <= 428) {
+      if (!pet.backupSlotExists(backupSlot)) {
+        backupStatus = 4; backupStatusUntil = millis() + 2500;
+        return;
+      }
+      backupConfirm = true;
+      return;
     }
-    if (y >= 400 && y <= 455) { settingsPage = 0; return; }
-  } else if (settingsPage == 6) {
+    if (y >= 400 && y <= 455 && x < 220) { settingsPage = 0; return; }  } else if (settingsPage == 6) {
     if (y >= 400 && y <= 455) { settingsPage = 0; return; }
   }
 }
