@@ -1757,7 +1757,7 @@ void renderClock() {
   setCur(276, 325);
   printT(T(S_MIN));
 
-  drawSettingsOkButton(390);
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 
@@ -1777,11 +1777,7 @@ void renderBrightness() {
   drawSettingButton(104, 265, "-");
   drawSettingButton(304, 265, "+");
 
-  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 401);
-  printT("OK");
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 
@@ -1811,11 +1807,7 @@ void renderVolume() {
   setCur(122 + (222 - textW(sl, 2)) / 2, 342);
   printT(sl);
 
-  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 401);
-  printT("OK");
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 
@@ -1839,11 +1831,7 @@ void renderLanguage() {
   drawSettingButton(104, 265, "-");
   drawSettingButton(304, 265, "+");
 
-  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 401);
-  printT("OK");
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 
@@ -1971,7 +1959,7 @@ void renderBackup() {
     printT(msg);
   }
 
-  drawSettingsOkButton(404);
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 void renderInfo() {
@@ -1990,7 +1978,7 @@ void renderInfo() {
   setCur(centerX(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"), 2), 205); printT(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"));
   setCur(centerX(forkLabel("TamaPoke", "TamaPoke"), 2), 260); printT(forkLabel("TamaPoke", "TamaPoke"));
   setCur(centerX(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"), 2), 290); printT(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"));
-  drawSettingsOkButton(400);
+  drawSettingsOkButton(398);
   gfx->flush();
 }
 
@@ -2018,7 +2006,7 @@ void settingsTap(int16_t x, int16_t y) {
       else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
       return;
     }
-    if (y >= 390 && y <= 445) {
+    if (y >= 398 && y <= 442) {
       applyClock(); return;
     }
   } else if (settingsPage == 2) {
@@ -2029,7 +2017,7 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       saveUserBrightness(); lastInteract = millis(); updateBrightness(millis()); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 370 && y <= 430) {
+    if (y >= 398 && y <= 442) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 3) {
@@ -2044,7 +2032,7 @@ void settingsTap(int16_t x, int16_t y) {
       if (audioEnabled()) sfxPlay(SFX_TAP);
       return;
     }
-    if (y >= 390 && y <= 445) {
+    if (y >= 398 && y <= 442) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 4) {
