@@ -651,8 +651,8 @@ void tamaDashResetEasterEgg() {
 
 bool tamaDashHandleSunTap(int16_t x, int16_t y) {
   // Bestehendes Sonnen-Symbol auf der Helligkeitsseite.
-  const int dx = x - 72;
-  const int dy = y - 226;
+  const int dx = x - 233;
+  const int dy = y - 140;
   if (dx * dx + dy * dy > 34 * 34) {
     sunTaps = 0;
     lastSunTapMs = 0;
