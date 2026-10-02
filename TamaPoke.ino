@@ -79,6 +79,7 @@ uint8_t cardPage = 0;         // 0 perfil, 1 stats+medallas
 bool clockOpen = false;       // pagina de ajuste de hora dentro de Einstellungen
 int clockH = 12, clockM = 0;  // hora en edicion
 bool settingsOpen = false;    // nueva pagina de inicio de ajustes
+uint32_t settingsLastInteract = 0; // actividad independiente del display-dimmer
 uint8_t settingsPage = 0;     // 0 home, 1 reloj, 2 brillo, 3 volumen, 4 idioma, 5 backup, 6 info
 uint8_t backupConfirm = 0; // 0 = none, 1 = restore, 2 = overwrite
 bool backupInfoDirty = true;
@@ -287,6 +288,8 @@ void ensureMon() {
   }
 }
 
+static constexpr uint32_t SETTINGS_IDLE_MS = 20000;
+
 void loop() {
   uint32_t now = millis();
   pet.update(now);
@@ -310,6 +313,16 @@ void loop() {
 
   handleTouch();
   handleSerial();
+
+  // Temporizador propio de ajustes: no comparte lastInteract con el dimmer.
+  if (settingsOpen && now - settingsLastInteract >= SETTINGS_IDLE_MS) {
+    settingsOpen = false;
+    settingsPage = 0;
+    clockOpen = false;
+    backupConfirm = 0;
+    backupStatus = 0;
+    tamaDashResetEasterEgg();
+  }
   ensureMon();
 
   // pulsacion corta del PWR: pantalla on/off
@@ -1663,6 +1676,7 @@ static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
 void openSettings() {
   tamaDashResetEasterEgg();
   lastInteract = millis();
+  settingsLastInteract = millis();
   settingsOpen = true;
   settingsPage = 0;
   clockOpen = false;
@@ -1672,6 +1686,7 @@ void openSettings() {
 void openClock() {
   tamaDashResetEasterEgg();
   lastInteract = millis();
+  settingsLastInteract = millis();
   uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   clockH = (e / 3600) % 24;
   clockM = (e / 60) % 60;
@@ -1701,6 +1716,16 @@ void drawClockBtn(int x, int y, const char *l) {
   printT(l);
 }
 
+static void drawSettingsOkButton(int y = 398) {
+  const int w = 132, h = 44;
+  const int x = CX - w / 2;
+  gfx->fillRoundRect(x, y, w, h, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(centerX("OK", 3), y + 9);
+  printT("OK");
+}
+
 void renderSettingsHome() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
@@ -1717,11 +1742,7 @@ void renderSettingsHome() {
   drawSettingsTile(170, 216, 4, forkLabel("SAVE", "BACKUP"));
   drawSettingsTile(292, 216, 5, "INFO");
 
-  gfx->fillRoundRect(72, 378, 324, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 389);
-  printT("OK");
+  drawSettingsOkButton(378);
   gfx->flush();
 }
 
@@ -1750,11 +1771,7 @@ void renderClock() {
   setCur(276, 325);
   printT(T(S_MIN));
 
-  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 401);
-  printT("OK");
+  drawSettingsOkButton(390);
   gfx->flush();
 }
 
@@ -1933,6 +1950,14 @@ void renderBackup() {
       setCur(x + 57 - textW(meta, 1) / 2, 220);
       printT(meta);
     }
+
+    if (used) {
+      gfx->fillRoundRect(x + 78, 144, 28, 28, 8, UI_BAR_BAD);
+      gfx->setTextColor(UI_WHITE);
+      setSize(3);
+      setCur(x + 86, 147);
+      printT("-");
+    }
   }
 
   gfx->fillRoundRect(62, 266, 342, 52, 14, UI_BAR_OK);
@@ -1955,11 +1980,7 @@ void renderBackup() {
     printT(msg);
   }
 
-  gfx->fillRoundRect(72, 404, 324, 44, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX("OK", 3), 414);
-  printT("OK");
+  drawSettingsOkButton(404);
   gfx->flush();
 }
 void renderInfo() {
@@ -1978,15 +1999,12 @@ void renderInfo() {
   setCur(centerX(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"), 2), 205); printT(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"));
   setCur(centerX(forkLabel("TamaPoke", "TamaPoke"), 2), 260); printT(forkLabel("TamaPoke", "TamaPoke"));
   setCur(centerX(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"), 2), 290); printT(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"));
-  gfx->fillRoundRect(72, 400, 324, 44, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(centerX(forkLabel("OK", "OK"), 3), 410);
-  printT(forkLabel("OK", "OK"));
+  drawSettingsOkButton(400);
   gfx->flush();
 }
 
 void settingsTap(int16_t x, int16_t y) {
+  settingsLastInteract = millis();
   if (settingsPage == 0) {
     if (y >= 378 && y <= 430 && x >= 72 && x <= 396) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
     if (y >= 82 && y < 198) {
@@ -2081,6 +2099,20 @@ void settingsTap(int16_t x, int16_t y) {
       return;
     }
 
+    if (y >= 140 && y <= 172) {
+      if (x >= 126 && x < 154 && backupSlotValid[0]) {
+        if (pet.deleteBackupSlot(1)) { backupStatus = 0; backupInfoDirty = true; }
+        return;
+      }
+      if (x >= 252 && x < 280 && backupSlotValid[1]) {
+        if (pet.deleteBackupSlot(2)) { backupStatus = 0; backupInfoDirty = true; }
+        return;
+      }
+      if (x >= 378 && x < 406 && backupSlotValid[2]) {
+        if (pet.deleteBackupSlot(3)) { backupStatus = 0; backupInfoDirty = true; }
+        return;
+      }
+    }
     if (y >= 138 && y <= 250) {
       if (x >= 48 && x < 162) backupSlot = 1;
       else if (x >= 174 && x < 288) backupSlot = 2;
