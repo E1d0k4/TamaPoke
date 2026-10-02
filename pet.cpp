@@ -44,7 +44,18 @@ static uint32_t backupCrc(const uint8_t *p, size_t n) {
   return h;
 }
 
-static constexpr const char *PET_BACKUP_PATH = "/tamapoke_backup.bin";
+static const char *backupSlotPath(uint8_t slot) {
+  static char path[32];
+  if (slot < 1 || slot > 3) return nullptr;
+  snprintf(path, sizeof(path), "/tamapoke_save%u.bin", slot);
+  return path;
+}
+static const char *backupSlotTempPath(uint8_t slot) {
+  static char path[32];
+  if (slot < 1 || slot > 3) return nullptr;
+  snprintf(path, sizeof(path), "/tamapoke_save%u.tmp", slot);
+  return path;
+}
 static constexpr uint16_t PET_BACKUP_VERSION = 1;
 }
 #endif
@@ -249,8 +260,16 @@ void Pet::flushSave() {
 // die save()/load() in NVS verwalten, plus die beiden Audio-Einstellungen und
 // den Fork-Helligkeitswert. Ein CRC schuetzt vor einem unvollstaendigen oder
 // beschaedigten Backup; ein ungueltiges Backup wird niemals eingespielt.
-bool Pet::backupToSD() {
-  if (!SD_MMC.cardSize()) return false;
+bool Pet::backupSlotExists(uint8_t slot) const {
+  const char *path = backupSlotPath(slot);
+  return path && SD_MMC.exists(path);
+}
+
+bool Pet::backupToSD(uint8_t slot) {
+  const char *path = backupSlotPath(slot);
+  const char *tmp = backupSlotTempPath(slot);
+  if (!path || !tmp || !SD_MMC.cardSize()) return false;
+
   PetBackup b{};
   memcpy(b.magic, "TPKB", 4);
   b.version = PET_BACKUP_VERSION;
@@ -275,17 +294,27 @@ bool Pet::backupToSD() {
   b.crc = 0;
   b.crc = backupCrc(reinterpret_cast<const uint8_t*>(&b) + 12, sizeof(PetBackup) - 12);
 
-  if (SD_MMC.exists(PET_BACKUP_PATH)) SD_MMC.remove(PET_BACKUP_PATH);
-  File f = SD_MMC.open(PET_BACKUP_PATH, FILE_WRITE);
+  if (SD_MMC.exists(tmp)) SD_MMC.remove(tmp);
+  File f = SD_MMC.open(tmp, FILE_WRITE);
   if (!f) return false;
   size_t written = f.write(reinterpret_cast<const uint8_t*>(&b), sizeof(b));
   f.close();
-  return written == sizeof(b);
+  if (written != sizeof(b)) {
+    SD_MMC.remove(tmp);
+    return false;
+  }
+  if (SD_MMC.exists(path)) SD_MMC.remove(path);
+  if (!SD_MMC.rename(tmp, path)) {
+    SD_MMC.remove(tmp);
+    return false;
+  }
+  return true;
 }
 
-bool Pet::restoreFromSD() {
-  if (!SD_MMC.cardSize()) return false;
-  File f = SD_MMC.open(PET_BACKUP_PATH, FILE_READ);
+bool Pet::restoreFromSD(uint8_t slot) {
+  const char *path = backupSlotPath(slot);
+  if (!path || !SD_MMC.cardSize()) return false;
+  File f = SD_MMC.open(path, FILE_READ);
   if (!f || f.size() != sizeof(PetBackup)) { if (f) f.close(); return false; }
   PetBackup b{};
   size_t got = f.read(reinterpret_cast<uint8_t*>(&b), sizeof(b));
@@ -304,7 +333,8 @@ bool Pet::restoreFromSD() {
   prefs.putBool("stpk", b.starterPick); prefs.putBytes("dexsh", b.dexShiny, sizeof(b.dexShiny));
   prefs.putUInt("age", b.age); prefs.putShort("dexn", b.species); prefs.putShort("eggT2", b.eggTarget);
   prefs.putUChar("crack", b.eggTaps); prefs.putUChar("mist", b.mistakes); prefs.putBool("sleep", b.sleeping);
-  prefs.putUChar("lend", b.lastEnd); if (b.seen) prefs.putUInt("seen", b.seen);
+  prefs.putUChar("lend", b.lastEnd);
+  if (b.seen) prefs.putUInt("seen", b.seen); else prefs.remove("seen");
   prefs.putBytes("dexreg", b.dexReg, sizeof(b.dexReg)); prefs.putUShort("strk", b.streak);
   prefs.putUShort("bstrk", b.bestStreak); prefs.putUInt("cday", b.careDay); prefs.putUChar("bond", b.bond);
   prefs.putUShort("medal", b.medals); prefs.putUShort("tmedal", b.totalMedals);
