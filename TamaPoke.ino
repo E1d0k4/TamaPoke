@@ -1920,11 +1920,9 @@ void renderBackup() {
       setSize(1);
       setCur(x + 57 - textW(name, 1) / 2, 201);
       printT(name);
-      char meta[32];
-      char stamp[20];
-      formatBackupDate(backupSlotSeen[i - 1], stamp, sizeof(stamp));
-      snprintf(meta, sizeof(meta), "LV %u  %s",
-               (unsigned)(1 + backupSlotAge[i - 1] / MINUTES_PER_LEVEL), stamp);
+      char meta[20];
+      snprintf(meta, sizeof(meta), "LV %u",
+               (unsigned)(1 + backupSlotAge[i - 1] / MINUTES_PER_LEVEL));
       setSize(1);
       setCur(x + 57 - textW(meta, 1) / 2, 220);
       printT(meta);
