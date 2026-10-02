@@ -1702,6 +1702,12 @@ void drawClockBtn(int x, int y, const char *l) {
   printT(l);
 }
 
+static bool settingsOkHit(int16_t x, int16_t y) {
+  // Grosszuegige Touchflaeche rund um den sichtbaren OK-Button.
+  // Die sichtbare Taste bleibt kompakt, die Bedienflaeche ist bewusst groesser.
+  return x >= 128 && x <= 338 && y >= 386 && y <= 456;
+}
+
 static void drawSettingsOkButton(int y = 398) {
   const int w = 132, h = 44;
   const int x = CX - w / 2;
@@ -1982,7 +1988,7 @@ void renderInfo() {
 
 void settingsTap(int16_t x, int16_t y) {
   if (settingsPage == 0) {
-    if (y >= 378 && y <= 422 && x >= 167 && x <= 299) { settingsOpen = false; veggResetEasterEgg(); return; }
+    if (settingsOkHit(x, y)) { settingsOpen = false; veggResetEasterEgg(); return; }
     if (y >= 82 && y < 198) {
       if (x >= 48 && x < 174) { openClock(); return; }
       if (x >= 170 && x < 296) { settingsPage = 2; return; }
@@ -2004,7 +2010,7 @@ void settingsTap(int16_t x, int16_t y) {
       else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
       return;
     }
-    if (y >= 398 && y <= 442) {
+    if (settingsOkHit(x, y)) {
       applyClock(); return;
     }
   } else if (settingsPage == 2) {
@@ -2014,7 +2020,7 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       saveUserBrightness(); lastInteract = millis(); updateBrightness(millis()); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 398 && y <= 442) {
+    if (settingsOkHit(x, y)) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 3) {
@@ -2029,7 +2035,7 @@ void settingsTap(int16_t x, int16_t y) {
       if (audioEnabled()) sfxPlay(SFX_TAP);
       return;
     }
-    if (y >= 398 && y <= 442) {
+    if (settingsOkHit(x, y)) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 4) {
@@ -2041,7 +2047,7 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       applyLangFont(); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 398 && y <= 442) {
+    if (settingsOkHit(x, y)) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 5) {
@@ -2120,10 +2126,10 @@ void settingsTap(int16_t x, int16_t y) {
       backupConfirm = 1;
       return;
     }
-    if (y >= 398 && y <= 442) { settingsPage = 0; return; }
+    if (settingsOkHit(x, y)) { settingsPage = 0; return; }
   } else if (settingsPage == 6) {
     if (veggHandleVersionTap(x, y)) { veggOpen(); settingsOpen = false; return; }
-    if (y >= 398 && y <= 442) { settingsPage = 0; return; }
+    if (settingsOkHit(x, y)) { settingsPage = 0; return; }
   }
 }
 
