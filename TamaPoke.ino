@@ -22,14 +22,14 @@
 #include "rtcbat.h"
 #include "i18n.h"
 #include "audio.h"
-#include "TamaDash.h"
+#include "Vegg.h"
 #include <Preferences.h>
 #include <time.h>
 
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
 #define ORIGINAL_VERSION "1.17"
-#define FORK_VERSION "0.2.7"
+#define FORK_VERSION "0.2.8"
 #define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
@@ -361,7 +361,7 @@ void loop() {
   // volcado). Es la mayor carga evitable de la placa. Cada render repinta la
   // escena entera, asi que no queda nada a medias; y al quedarse lastRender
   // congelado, el primer frame tras despertar sale en el acto.
-  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen || tamaDashActive()) ? 85 : 100)) {
+  if (!screenOff && now - lastRender >= (uint32_t)((gameOpen || sackOpen || veggActive()) ? 85 : 100)) {
     lastRender = now;
     render();
   }
@@ -381,11 +381,11 @@ void saveUserBrightness() {
 }
 
 void updateBrightness(uint32_t now) {
-  // Tama Dash es un aktiver Vollbild-Spielmodus. Der normale AMOLED-
+  // Vegg es un aktiver Vollbild-Spielmodus. Der normale AMOLED-
   // Inaktivitaetsdimmer darf dort niemals eingreifen: Touches werden im
   // eigenen Dash-Eingabepfad verarbeitet und aktualisieren bewusst nicht
   // lastInteract, daher halten wir den Bildschirm hier explizit wach.
-  if (tamaDashActive()) {
+  if (veggActive()) {
     lastInteract = now;
     dimStage = 0;
   } else if (pet.evolving() || pet.ceremony || pet.eating() || pet.showHeart()) {
@@ -564,13 +564,13 @@ void handleTouch() {
     return;
   }
 
-  // Tama Dash tiene su propio camino de entrada tactil. No dejar que un
+  // Vegg tiene su propio camino de entrada tactil. No dejar que un
   // toque del runner atraviese el sistema normal de gestos: ese sistema espera
   // al levantamiento del dedo y actualiza el estado global de inactividad.
   // En el runner, un Touch-Down es directamente una orden de salto/back.
-  if (tamaDashActive()) {
+  if (veggActive()) {
     if (pressed && !wasPressed) {
-      tamaDashTap(x, y);
+      veggTap(x, y);
     }
     wasPressed = pressed;
     return;
@@ -616,10 +616,10 @@ void onSwipeV(int dir) {
   if (settingsOpen) {
     if (settingsPage == 0) settingsOpen = false;
     else { settingsPage = 0; clockOpen = false; backupConfirm = false; }
-    tamaDashResetEasterEgg();
+    veggResetEasterEgg();
     return;
   }
-  if (clockOpen) { clockOpen = false; tamaDashResetEasterEgg(); return; }
+  if (clockOpen) { clockOpen = false; veggResetEasterEgg(); return; }
   if (cardOpen) {
     if (dir < 0) cardOpen = false;  // arriba cierra la ficha
     return;
@@ -698,8 +698,8 @@ void onTap(int16_t x, int16_t y) {
     clockTap(x, y);
     return;
   }
-  if (tamaDashActive()) {
-    tamaDashTap(x, y);
+  if (veggActive()) {
+    veggTap(x, y);
     return;
   }
   if (pet.ceremony) return;  // durante la despedida no hay botones
@@ -1065,8 +1065,8 @@ void render() {
     renderGame();
     return;
   }
-  if (tamaDashActive()) {
-    if (!tamaDashRender()) clockOpen = false;
+  if (veggActive()) {
+    if (!veggRender()) clockOpen = false;
     return;
   }
   if (sackOpen) {
@@ -1662,7 +1662,7 @@ static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
 }
 
 void openSettings() {
-  tamaDashResetEasterEgg();
+  veggResetEasterEgg();
   lastInteract = millis();
   settingsOpen = true;
   settingsPage = 0;
@@ -1671,7 +1671,7 @@ void openSettings() {
 }
 
 void openClock() {
-  tamaDashResetEasterEgg();
+  veggResetEasterEgg();
   lastInteract = millis();
   uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   clockH = (e / 3600) % 24;
@@ -1683,7 +1683,7 @@ void openClock() {
 }
 
 void applyClock() {
-  tamaDashResetEasterEgg();
+  veggResetEasterEgg();
   uint32_t base = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   uint32_t e = (base / 86400) * 86400 + (uint32_t)clockH * 3600 + (uint32_t)clockM * 60;
   rtcSetEpoch(e);
@@ -1984,7 +1984,7 @@ void renderInfo() {
 
 void settingsTap(int16_t x, int16_t y) {
   if (settingsPage == 0) {
-    if (y >= 378 && y <= 422 && x >= 167 && x <= 299) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
+    if (y >= 378 && y <= 422 && x >= 167 && x <= 299) { settingsOpen = false; veggResetEasterEgg(); return; }
     if (y >= 82 && y < 198) {
       if (x >= 48 && x < 174) { openClock(); return; }
       if (x >= 170 && x < 296) { settingsPage = 2; return; }
@@ -2124,7 +2124,7 @@ void settingsTap(int16_t x, int16_t y) {
     }
     if (y >= 398 && y <= 442) { settingsPage = 0; return; }
   } else if (settingsPage == 6) {
-    if (tamaDashHandleInfoTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
+    if (veggHandleVersionTap(x, y)) { veggOpen(); settingsOpen = false; return; }
     if (y >= 398 && y <= 442) { settingsPage = 0; return; }
   }
 }
