@@ -265,6 +265,16 @@ bool Pet::backupSlotExists(uint8_t slot) const {
   return path && SD_MMC.exists(path);
 }
 
+bool Pet::deleteBackupSlot(uint8_t slot) {
+  const char *path = backupSlotPath(slot);
+  const char *tmp = backupSlotTempPath(slot);
+  if (!path || !tmp || !SD_MMC.cardSize()) return false;
+  bool removed = true;
+  if (SD_MMC.exists(path)) removed = SD_MMC.remove(path);
+  if (SD_MMC.exists(tmp)) SD_MMC.remove(tmp);
+  return removed;
+}
+
 bool Pet::backupSlotInfo(uint8_t slot, int16_t &species, uint32_t &age, uint32_t &seenEpoch) const {
   species = -1;
   age = 0;
