@@ -446,29 +446,50 @@ static void drawBranchTree(float tx) {
   circ(f, -40, 108, 20, c2);
 }
 
-static void drawEeveeTestSprite() {
-  // First hardware test: one real Eevee frame from the supplied sprite sheet.
-  // The sprite keeps the same curved-ground coordinate system as the old fox.
-  Frame f = frameAt(foxX, -jumpH, sc * 1.8f);
+static void drawEevee() {
+  // Three real Eevee frames from the supplied sprite sheet.
+  // The source artwork faces the opposite direction, so draw it mirrored.
+  const bool air = jumpH > 0.5f;
+  const uint8_t frame = air
+    ? 0
+    : (uint8_t)((uint32_t)(runTime * 10.0f) % TD_EEVEE_RUN_FRAMES);
 
-  const int w = TD_EEVEE_RUN0_W;
-  const int h = TD_EEVEE_RUN0_H;
+  const uint16_t widths[] = {
+    TD_EEVEE_RUN0_W, TD_EEVEE_RUN1_W, TD_EEVEE_RUN2_W
+  };
+  const uint16_t heights[] = {
+    TD_EEVEE_RUN0_H, TD_EEVEE_RUN1_H, TD_EEVEE_RUN2_H
+  };
+  const uint8_t *frames[] = {
+    TD_EEVEE_RUN0, TD_EEVEE_RUN1, TD_EEVEE_RUN2
+  };
+
+  const uint16_t w = widths[frame];
+  const uint16_t h = heights[frame];
+  const uint8_t *src = frames[frame];
+
+  // Larger than the first test: about 3x source-pixel size.
+  const float spriteScale = sc * 3.0f;
+  Frame f = frameAt(foxX, -jumpH, spriteScale);
   const float ox = (w - 1) * 0.5f;
 
-  for (int sy = 0; sy < h; ++sy) {
-    for (int sx = 0; sx < w; ++sx) {
-      const uint8_t pi = TD_EEVEE_RUN0_PIXELS[sy * w + sx];
-      if (pi == 0) continue; // transparent source-sheet background
+  for (uint16_t sy = 0; sy < h; ++sy) {
+    for (uint16_t sx = 0; sx < w; ++sx) {
+      const uint16_t pos = sy * w + sx;
+      const uint8_t packed = src[pos >> 1];
+      const uint8_t pi = (pos & 1) ? (packed & 0x0F) : (packed >> 4);
+      if (pi == 0) continue;
+
+      // Mirror horizontally so Eevee runs in the same direction as the runner.
+      const float lx = ((float)(w - 1 - sx) - ox);
+      const float ly = (float)(h - 1 - sy);
 
       int px, py;
-      const float lx = (float)sx - ox;
-      const float ly = (float)(h - 1 - sy);
       P(f, lx, ly, px, py);
 
-      // A small square keeps the source pixel-art character intact.
-      const int ps = ri(sc * 1.8f);
+      const int ps = ri(spriteScale);
       g->fillRect(px, py, ps < 1 ? 1 : ps, ps < 1 ? 1 : ps,
-                  TD_EEVEE_RUN0_PALETTE[pi]);
+                  TD_EEVEE_PALETTE[pi]);
     }
   }
 }
@@ -586,7 +607,7 @@ static void draw() {
     else if (obs[i].type == OB_BRANCH) drawBranchTree(obs[i].x);
   }
 
-  drawEeveeTestSprite();
+  drawEevee();
   drawHud();
 }
 
