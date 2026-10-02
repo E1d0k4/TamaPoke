@@ -4,7 +4,25 @@ All notable changes to the firmware. Versions match the number shown at the
 bottom of the clock/settings screen (swipe down) and `web/manifest.json`.
 
 Updating from the [web installer](https://socquique.github.io/TamaPoke/web/)
-**without** ticking "Erase device" keeps your Pokémon.
+**without** ticking "Erase device" keeps your Pokémon. Fork 0.2.0 fixes the
+installer so that this is true for the fork's web installer: the firmware parts
+are flashed separately and the NVS save area is not part of the normal update.
+
+## [0.2.0] - 2026-10-02
+
+### Added
+- **Tama Dash:** hidden endless-runner easter egg with touch jump, berry bushes,
+  overhead branches, increasing speed, persistent highscore and automatic return
+  after game over.
+- **Safe firmware updates:** the web installer now uses separate flash parts
+  instead of a single merged binary, preserving NVS when the user does not erase
+  the device.
+
+### Fixed
+- Tama Dash touch input is isolated from the normal gesture handler to prevent
+  rendering flicker during jumps.
+- Returning from Tama Dash no longer reopens the stale clock settings screen,
+  so the RTC is not accidentally reset after a run.
 
 ## [1.17] - 2026-09-18
 
