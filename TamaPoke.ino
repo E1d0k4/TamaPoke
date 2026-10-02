@@ -29,7 +29,7 @@
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
 #define ORIGINAL_VERSION "1.17"
-#define FORK_VERSION "0.2.6"
+#define FORK_VERSION "0.2.7"
 #define FW_VERSION ORIGINAL_VERSION
 
 Arduino_DataBus *bus = new Arduino_ESP32QSPI(
