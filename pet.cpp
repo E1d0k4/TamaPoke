@@ -288,7 +288,7 @@ bool Pet::restoreFromSD() {
       b.version != PET_BACKUP_VERSION || b.size != sizeof(PetBackup)) return false;
   uint32_t stored = b.crc;
   b.crc = 0;
-  if (backupCrc(reinterpret_cast<const uint8_t*>(&b) + 10, sizeof(PetBackup) - 10) != stored) return false;
+  if (backupCrc(reinterpret_cast<const uint8_t*>(&b) + 12, sizeof(PetBackup) - 12) != stored) return false;
 
   prefs.putUChar("full", b.full); prefs.putUChar("joy", b.joy); prefs.putUChar("ene", b.ene);
   prefs.putUChar("hyg", b.hyg); prefs.putUChar("poop", b.poop); prefs.putUChar("wgt", b.wgt);
@@ -304,8 +304,10 @@ bool Pet::restoreFromSD() {
   prefs.putUShort("medal", b.medals); prefs.putUShort("tmedal", b.totalMedals);
   prefs.putUShort("mstone", b.milestone); prefs.putUShort("ghi", b.gameHi); prefs.putUShort("shi", b.strHi);
   b.nick[sizeof(b.nick)-1] = 0; prefs.putString("nick", b.nick);
-  tamaDashSetBestScore(b.dashBest);
   prefs.putUChar("bright", b.bright); prefs.putBool("snd", b.snd != 0); prefs.putUChar("vol", b.vol);
+  prefs.end();
+  tamaDashSetBestScore(b.dashBest);
+  prefs.begin("tamapoke", false);
 
   load();
   pendingSave = false;
