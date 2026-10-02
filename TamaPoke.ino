@@ -1987,12 +1987,12 @@ void renderInfo() {
   setCur(centerX(f, 2), 150); printT(f);
   setCur(centerX(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"), 2), 205); printT(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"));
   setCur(centerX(forkLabel("TamaPoke", "TamaPoke"), 2), 260); printT(forkLabel("TamaPoke", "TamaPoke"));
-  setCur(centerX(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"), 2); printT(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"));
+  setCur(centerX(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"), 2), 290); printT(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"));
   gfx->fillRoundRect(72, 400, 324, 44, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(centerX("OK", 3), 410);
-  printT("OK");
+  setCur(centerX(forkLabel("OK", "OK"), 3), 410);
+  printT(forkLabel("OK", "OK"));
   gfx->flush();
 }
 
