@@ -736,3 +736,13 @@ bool tamaDashRender() {
 bool tamaDashActive() {
   return active;
 }
+
+uint32_t tamaDashBestScore() {
+  loadBest();
+  return best;
+}
+
+void tamaDashSetBestScore(uint32_t value) {
+  best = value;
+  saveBest();
+}
