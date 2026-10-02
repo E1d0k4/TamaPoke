@@ -1737,9 +1737,11 @@ void renderClock() {
   setCur(276, 211);
   printT(T(S_MIN));
 
-  gfx->fillRoundRect(70, 330, 150, 54, 14, UI_WHITE);
-  gfx->drawRoundRect(70, 330, 150, 54, 14, UI_INK);
-  drawSettingsBack(145, 357, UI_INK);
+  gfx->fillRoundRect(70, 330, 150, 54, 14, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(145, 343);
+  printT("OK");
   gfx->fillRoundRect(246, 330, 150, 54, 14, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
