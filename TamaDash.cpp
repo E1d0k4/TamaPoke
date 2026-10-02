@@ -1,4 +1,4 @@
-// TamaDash.cpp - "Tama Dash": Fuchs-Endless-Runner auf einem kleinen Planeten
+// TamaDash.cpp - "Eevee Jump": versteckter Endless-Runner auf einem kleinen Planeten
 //
 // Grafische Grundlage: gekrümmte Planetenoberflaeche + lokales Koordinatensystem,
 // damit Wald, Fuchs und Hindernisse der Weltkrümmung folgen.
@@ -63,11 +63,11 @@ static uint32_t rngS = 2463534242u;
 
 static Obstacle obs[MAXOB];
 
-static uint8_t sunTaps = 0;
-static uint32_t lastSunTapMs = 0;
+static uint8_t infoTaps = 0;
+static uint32_t lastInfoTapMs = 0;
 
-static constexpr uint8_t TD_SUN_TAPS = 5;
-static constexpr uint32_t TD_SUN_MAX_GAP_MS = 1000;
+static constexpr uint8_t TD_INFO_TAPS = 5;
+static constexpr uint32_t TD_INFO_MAX_GAP_MS = 1000;
 static constexpr uint32_t TD_GAMEOVER_IDLE_MS = 6000;
 
 static constexpr uint16_t TD_WHITE = 0xFFFF;
@@ -645,34 +645,33 @@ void tamaDashOpen() {
 }
 
 void tamaDashResetEasterEgg() {
-  sunTaps = 0;
-  lastSunTapMs = 0;
+  infoTaps = 0;
+  lastInfoTapMs = 0;
 }
 
-bool tamaDashHandleSunTap(int16_t x, int16_t y) {
-  // Bestehendes Sonnen-Symbol auf der Helligkeitsseite.
-  const int dx = x - 233;
-  const int dy = y - 140;
-  if (dx * dx + dy * dy > 34 * 34) {
-    sunTaps = 0;
-    lastSunTapMs = 0;
+bool tamaDashHandleInfoTap(int16_t x, int16_t y) {
+  // INFO-Überschrift auf der INFO-Seite als versteckter Trigger.
+  const bool inside = (x >= 145 && x <= 321 && y >= 18 && y <= 72);
+  if (!inside) {
+    infoTaps = 0;
+    lastInfoTapMs = 0;
     return false;
   }
 
   uint32_t now = millis();
-  if (sunTaps > 0 && now - lastSunTapMs > TD_SUN_MAX_GAP_MS) {
-    sunTaps = 0;
+  if (infoTaps > 0 && now - lastInfoTapMs > TD_INFO_MAX_GAP_MS) {
+    infoTaps = 0;
   }
 
-  lastSunTapMs = now;
+  lastInfoTapMs = now;
 
-  ++sunTaps;
-  if (sunTaps < TD_SUN_TAPS) {
+  ++infoTaps;
+  if (infoTaps < TD_INFO_TAPS) {
     return false;
   }
 
-  sunTaps = 0;
-  lastSunTapMs = 0;
+  infoTaps = 0;
+  lastInfoTapMs = 0;
   return true;
 }
 
