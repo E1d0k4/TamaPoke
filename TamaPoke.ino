@@ -1984,7 +1984,7 @@ void renderInfo() {
 
 void settingsTap(int16_t x, int16_t y) {
   if (settingsPage == 0) {
-    if (y >= 378 && y <= 430 && x >= 72 && x <= 396) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
+    if (y >= 378 && y <= 422 && x >= 167 && x <= 299) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
     if (y >= 82 && y < 198) {
       if (x >= 48 && x < 174) { openClock(); return; }
       if (x >= 170 && x < 296) { settingsPage = 2; return; }
@@ -2044,7 +2044,7 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       applyLangFont(); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 390 && y <= 445) {
+    if (y >= 398 && y <= 442) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 5) {
@@ -2123,8 +2123,9 @@ void settingsTap(int16_t x, int16_t y) {
       backupConfirm = 1;
       return;
     }
-    if (y >= 404 && y <= 452) { settingsPage = 0; return; }  } else if (settingsPage == 6) {
-    if (y >= 400 && y <= 455) { settingsPage = 0; return; }
+    if (y >= 398 && y <= 442) { settingsPage = 0; return; }
+  } else if (settingsPage == 6) {
+    if (y >= 398 && y <= 442) { settingsPage = 0; return; }
   }
 }
 
