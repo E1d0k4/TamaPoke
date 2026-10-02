@@ -230,7 +230,7 @@ If one bottoms out it counts as a *slip-up*.
 - Vertical swipe up = open the **stat card** (4 pages: Profile / Battle / Medals /
   Progress; swipe between them; tap the name on Profile to rename; on Battle the
   "Train strength" button opens the bag).
-- Swipe down = **set the clock** and pick the **language** + sound on/off.
+- Swipe down = open **Settings**; choose clock, brightness, volume, language, backup or info on the separate pages.
 - Long press (3 s) on the creature = **release** dialog.
 
 **Physical PWR button:** short = screen on/off · long (4 s) = full power-off
