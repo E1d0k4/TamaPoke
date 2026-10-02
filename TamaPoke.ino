@@ -82,6 +82,7 @@ uint8_t settingsPage = 0;     // 0 home, 1 reloj, 2 brillo, 3 volumen, 4 idioma,
 bool backupConfirm = false;
 uint8_t backupStatus = 0;     // 1 = backup ok, 2 = backup fail, 3 = restore ok, 4 = restore fail
 uint32_t backupStatusUntil = 0;
+uint8_t backupSlot = 1; // aktuell ausgewaehlter Spielstand 1..3
 
 // ajustes persistentes de la fork
 uint8_t userBrightness = 100;  // 10..100 %, brillo normal configurado
@@ -1920,7 +1921,7 @@ void renderInfo() {
   snprintf(f, sizeof(f), "Fork: %s", FORK_VERSION);
   setCur(centerX(o, 2), 120); printT(o);
   setCur(centerX(f, 2), 150); printT(f);
-  setCur(centerX("SD SAVE SLOTS: 1 / 2 / 3", 2), 205); printT("SD BACKUP: /tamapoke_backup.bin");
+  setCur(centerX("SD SAVE SLOTS: 1 / 2 / 3", 2), 205); printT("SD SAVE SLOTS: 1 / 2 / 3");
   setCur(centerX("TamaPoke", 2), 260); printT("TamaPoke");
   setCur(centerX("ESP32-S3 / 466x466", 2), 290); printT("ESP32-S3 / 466x466");
   gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
