@@ -177,7 +177,7 @@ static void loadBest() {
   // Preserve an existing highscore from older firmware without keeping the
   // former internal module name as a readable string in the source.
   if (best == 0) {
-    const char legacyNs[] = { 't','a','m','a','d','a','s','h','\\0' };
+    const char legacyNs[] = { 't','a','m','a','d','a','s','h','\0' };
     Preferences legacy;
     if (legacy.begin(legacyNs, true)) {
       best = legacy.getUInt("best", 0);
