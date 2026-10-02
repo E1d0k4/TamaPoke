@@ -627,7 +627,7 @@ void onSwipeV(int dir) {
 // deslizar: dir +1 = hacia la derecha
 void onSwipe(int dir) {
   if (pet.awaitingStarter()) return;  // bloqueado durante la eleccion de inicial
-  if (gameOpen || kbOpen || clockOpen) return;
+  if (gameOpen || kbOpen || clockOpen || settingsOpen) return;
   if (cardOpen) {  // dentro de la ficha: cambiar entre las 4 paginas
     int p = (int)cardPage + (dir > 0 ? -1 : 1);  // izquierda avanza
     cardPage = p < 0 ? 0 : (p > 3 ? 3 : p);
@@ -1867,6 +1867,24 @@ void renderBackup() {
   printT("BACKUP");
   drawBackupIcon(CX, 122, UI_INK);
 
+  if (backupConfirm) {
+    gfx->fillRoundRect(72, 188, 322, 210, 18, UI_WHITE);
+    gfx->drawRoundRect(72, 188, 322, 210, 18, UI_INK);
+    gfx->setTextColor(UI_INK);
+    setSize(3);
+    setCur(centerX("RESTORE?", 3), 218);
+    setSize(2);
+    setCur(centerX("SPIELSTAND ERSETZEN", 2), 258);
+    gfx->fillRoundRect(82, 315, 125, 58, 12, UI_BAR_BAD);
+    gfx->fillRoundRect(259, 315, 125, 58, 12, UI_BAR_OK);
+    gfx->setTextColor(UI_BG_DAY);
+    setSize(3);
+    setCur(120, 330); printT("NEIN");
+    setCur(302, 330); printT("JA");
+    gfx->flush();
+    return;
+  }
+
   gfx->fillRoundRect(62, 195, 342, 62, 14, UI_BAR_OK);
   gfx->fillRoundRect(62, 274, 342, 62, 14, UI_BAR_WARN);
   gfx->setTextColor(UI_BG_DAY);
@@ -1989,8 +2007,15 @@ void settingsTap(int16_t x, int16_t y) {
         backupConfirm = false;
         bool ok = pet.restoreFromSD();
         if (ok) {
-          userBrightness = Preferences().getUChar("bright", userBrightness); // overwritten below by explicit load
-          audioSetEnabled(Preferences().getBool("snd", audioEnabled()));
+          Preferences p;
+          p.begin("tamapoke", true);
+          userBrightness = p.getUChar("bright", 100);
+          bool snd = p.getBool("snd", true);
+          uint8_t vol = p.getUChar("vol", 100);
+          p.end();
+          audioSetVolume(vol);
+          audioSetEnabled(snd);
+          updateBrightness(millis());
         }
         backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
         return;
