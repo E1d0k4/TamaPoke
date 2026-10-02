@@ -1885,6 +1885,8 @@ void renderBackup() {
     const char *q1 = forkLabel("ARE YOU SURE?", "SIND SIE SICHER?");
     const char *q2 = backupConfirm == 2
                        ? forkLabel("OVERWRITE SAVE", "SPIELSTAND UEBERSCHREIBEN")
+                       : backupConfirm == 3
+                       ? forkLabel("DELETE SAVE", "SPIELSTAND LOESCHEN")
                        : forkLabel("REPLACE SAVE", "SPIELSTAND ERSETZEN");
     char q2buf[48];
     snprintf(q2buf, sizeof(q2buf), "%s %u?", q2, backupSlot);
@@ -2062,7 +2064,12 @@ void settingsTap(int16_t x, int16_t y) {
       if (y >= 300 && y <= 358 && x >= 256) {
         uint8_t action = backupConfirm;
         backupConfirm = 0;
-        if (action == 2) {
+        if (action == 3) {
+          bool ok = pet.deleteBackupSlot(backupSlot);
+          backupStatus = ok ? 0 : 2;
+          backupStatusUntil = ok ? 0 : millis() + 2500;
+          backupInfoDirty = true;
+        } else if (action == 2) {
           bool ok = pet.backupToSD(backupSlot);
           backupStatus = ok ? 1 : 2; backupStatusUntil = millis() + 2500;
           backupInfoDirty = true;
@@ -2089,15 +2096,18 @@ void settingsTap(int16_t x, int16_t y) {
 
     if (y >= 140 && y <= 172) {
       if (x >= 126 && x < 154 && backupSlotValid[0]) {
-        if (pet.deleteBackupSlot(1)) { backupStatus = 0; backupInfoDirty = true; }
+        backupSlot = 1;
+        backupConfirm = 3;
         return;
       }
       if (x >= 252 && x < 280 && backupSlotValid[1]) {
-        if (pet.deleteBackupSlot(2)) { backupStatus = 0; backupInfoDirty = true; }
+        backupSlot = 2;
+        backupConfirm = 3;
         return;
       }
       if (x >= 378 && x < 406 && backupSlotValid[2]) {
-        if (pet.deleteBackupSlot(3)) { backupStatus = 0; backupInfoDirty = true; }
+        backupSlot = 3;
+        backupConfirm = 3;
         return;
       }
     }
