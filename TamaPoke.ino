@@ -609,7 +609,7 @@ void handleTouch() {
     uint32_t dt = millis() - tStart;
     if (!holdFired && !swallowGesture) {
       if (abs(dx) > 80 && abs(dy) < 70 && dt < 800) onSwipe(dx > 0 ? 1 : -1);
-      else if (abs(dy) > 60 && abs(dx) < 90 && dt < 1200) onSwipeV(dy > 0 ? 1 : -1);
+      else if (abs(dy) > 80 && abs(dx) < 70 && dt < 800) onSwipeV(dy > 0 ? 1 : -1);
       else if (dt < 1500 && abs(dx) < 40 && abs(dy) < 40) onTap(tX0, tY0);
     }
   }
