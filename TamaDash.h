@@ -1,4 +1,4 @@
-// TamaDash.h - verstecktes Endless-Runner-Easter-Egg fuer TamaPoke
+// TamaDash.h - verstecktes Eevee-Jump-Easter-Egg fuer TamaPoke
 // Vollstaendig gekapselt: keine Abhaengigkeit zur Pet-/Spiel-Logik.
 
 #pragma once
@@ -8,7 +8,7 @@
 // --- Easter-Egg-Erkennung ---------------------------------------------------
 
 void tamaDashResetEasterEgg();                       // Zaehler zuruecksetzen
-bool tamaDashHandleSunTap(int16_t x, int16_t y);     // true = Sonnen-Touch wurde verarbeitet
+bool tamaDashHandleInfoTap(int16_t x, int16_t y);     // true = INFO-Touch wurde verarbeitet
 
 // --- Spiel ------------------------------------------------------------------
 
