@@ -176,6 +176,7 @@ void updateBrightness(uint32_t now);
 
 // proteccion del AMOLED: atenuado por inactividad
 uint32_t lastInteract = 0;
+static constexpr uint32_t SETTINGS_IDLE_MS = 60000;
 uint8_t dimStage = 0;        // 0 despierto, 1 atenuado (90s), 2 casi apagado (5min)
 bool swallowGesture = false; // el toque que despierta no acciona nada
 uint32_t holdStart = 0;     // pulsacion larga sobre el bicho
@@ -320,6 +321,15 @@ void loop() {
       screenOff = !screenOff;
       if (!screenOff) lastInteract = now;
     }
+  }
+
+  // Einstellungen nach Inaktivitaet automatisch verlassen.
+  if (settingsOpen && now - lastInteract >= SETTINGS_IDLE_MS) {
+    settingsOpen = false;
+    clockOpen = false;
+    backupConfirm = 0;
+    backupStatus = 0;
+    tamaDashResetEasterEgg();
   }
 
   updateBrightness(now);
@@ -1588,6 +1598,10 @@ static void drawSettingButton(int x, int y, const char *label) {
   setCur(x + 23, y + 9);
   printT(label);
 }
+\nstatic const char *forkLabel(const char *en, const char *de) {
+  return gLang == LANG_DE ? de : en;
+}
+
 
 // ---------- ajuste de hora en pantalla (deslizar abajo) ----------
 // El usuario pone su hora LOCAL a ojo; el firmware la usa tal cual, asi que
@@ -1658,6 +1672,7 @@ static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
 
 void openSettings() {
   tamaDashResetEasterEgg();
+  lastInteract = millis();
   settingsOpen = true;
   settingsPage = 0;
   clockOpen = false;
@@ -1666,6 +1681,7 @@ void openSettings() {
 
 void openClock() {
   tamaDashResetEasterEgg();
+  lastInteract = millis();
   uint32_t e = pet.lastSeenEpoch ? pet.lastSeenEpoch : rtcEpoch();
   clockH = (e / 3600) % 24;
   clockM = (e / 60) % 60;
@@ -1700,15 +1716,15 @@ void renderSettingsHome() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("EINSTELLUNGEN", 3), 34);
-  printT("EINSTELLUNGEN");
+  setCur(centerX(forkLabel("SETTINGS", "EINSTELLUNGEN"), 3), 34);
+  printT(forkLabel("SETTINGS", "EINSTELLUNGEN"));
 
   // Etwas tiefer und mit mehr Luft zum Titel.
-  drawSettingsTile(48, 82, 0, "UHR");
-  drawSettingsTile(170, 82, 1, "HELL");
-  drawSettingsTile(292, 82, 2, "TON");
-  drawSettingsTile(48, 216, 3, "SPRACHE");
-  drawSettingsTile(170, 216, 4, "BACKUP");
+  drawSettingsTile(48, 82, 0, forkLabel("CLOCK", "UHR"));
+  drawSettingsTile(170, 82, 1, forkLabel("BRIGHT", "HELL"));
+  drawSettingsTile(292, 82, 2, forkLabel("SOUND", "TON"));
+  drawSettingsTile(48, 216, 3, forkLabel("LANGUAGE", "SPRACHE"));
+  drawSettingsTile(170, 216, 4, forkLabel("SAVE", "BACKUP"));
   drawSettingsTile(292, 216, 5, "INFO");
 
   gfx->fillRoundRect(72, 378, 324, 48, 12, UI_BAR_OK);
@@ -1757,8 +1773,8 @@ void renderBrightness() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("HELLIGKEIT", 3), 30);
-  printT("HELLIGKEIT");
+  setCur(centerX(forkLabel("BRIGHTNESS", "HELLIGKEIT"), 3), 30);
+  printT(forkLabel("BRIGHTNESS", "HELLIGKEIT"));
   drawSunIcon(CX, 125, UI_INK);
   char b[8];
   snprintf(b, sizeof(b), "%u%%", userBrightness);
@@ -1781,8 +1797,8 @@ void renderVolume() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("LAUTSTAERKE", 3), 30);
-  printT("LAUTSTAERKE");
+  setCur(centerX(forkLabel("VOLUME", "LAUTSTAERKE"), 3), 30);
+  printT(forkLabel("VOLUME", "LAUTSTAERKE"));
   drawSpeakerIcon(CX, 125, UI_INK);
   char v[8];
   snprintf(v, sizeof(v), "%u%%", audioVolume());
@@ -1794,7 +1810,7 @@ void renderVolume() {
 
   // Sound an/aus gehoert zur Lautstaerke, nicht zur Sprachseite.
   bool snd = audioEnabled();
-  const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
+  const char *sl = snd ? forkLabel("SOUND ON", "TON AN") : forkLabel("SOUND OFF", "TON AUS");
   gfx->fillRoundRect(122, 330, 222, 38, 10, snd ? UI_BAR_OK : UI_WHITE);
   gfx->drawRoundRect(122, 330, 222, 38, 10, UI_INK);
   gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
@@ -1815,8 +1831,8 @@ void renderLanguage() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("SPRACHE", 3), 30);
-  printT("SPRACHE");
+  setCur(centerX(forkLabel("LANGUAGE", "SPRACHE"), 3), 30);
+  printT(forkLabel("LANGUAGE", "SPRACHE"));
   drawLanguageIcon(CX, 125, UI_INK);
 
   // Sprache wie Helligkeit/Lautstaerke: Wert mittig, +/- als gleiche runde Tasten.
@@ -1864,8 +1880,8 @@ void renderBackup() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("SPIELSTAENDE", 3), 24);
-  printT("SPIELSTAENDE");
+  setCur(centerX(forkLabel("SAVE GAMES", "SPIELSTAENDE"), 3), 24);
+  printT(forkLabel("SAVE GAMES", "SPIELSTAENDE"));
   drawBackupIcon(CX, 78, UI_INK);
 
   if (backupConfirm) {
@@ -1878,22 +1894,22 @@ void renderBackup() {
     else snprintf(q, sizeof(q), "RESTORE %u?", backupSlot);
     setCur(centerX(q, 3), 184);
     setSize(2);
-    const char *msg = backupConfirm == 2 ? "SPIELSTAND UEBERSCHREIBEN" : "SPIELSTAND ERSETZEN";
+    const char *msg = backupConfirm == 2 ? forkLabel("OVERWRITE SAVE", "SPIELSTAND UEBERSCHREIBEN") : forkLabel("REPLACE SAVE", "SPIELSTAND ERSETZEN");
     setCur(centerX(msg, 2), 224);
     gfx->fillRoundRect(70, 300, 140, 58, 12, UI_BAR_BAD);
     gfx->fillRoundRect(256, 300, 140, 58, 12, UI_BAR_OK);
     gfx->setTextColor(UI_BG_DAY);
     setSize(3);
-    setCur(116, 315); printT("NEIN");
-    setCur(300, 315); printT("JA");
+    setCur(116, 315); printT(forkLabel("NO", "NEIN"));
+    setCur(300, 315); printT(forkLabel("YES", "JA"));
     gfx->flush();
     return;
   }
 
   gfx->setTextColor(UI_INK);
   setSize(2);
-  setCur(centerX("3 SPEICHERPLAETZE", 2), 118);
-  printT("3 SPEICHERPLAETZE");
+  setCur(centerX(forkLabel("3 SAVE SLOTS", "3 SPEICHERPLAETZE"), 2), 118);
+  printT(forkLabel("3 SAVE SLOTS", "3 SPEICHERPLAETZE"));
 
   for (uint8_t i = 1; i <= 3; i++) {
     int x = 48 + (i - 1) * 126;
@@ -1909,7 +1925,7 @@ void renderBackup() {
 
     setSize(2);
     if (!used) {
-      const char *state = "LEER";
+      const char *state = forkLabel("EMPTY", "LEER");
       setCur(x + 57 - textW(state, 2) / 2, 208);
       printT(state);
     } else {
@@ -1933,16 +1949,16 @@ void renderBackup() {
   gfx->fillRoundRect(62, 328, 342, 52, 14, UI_BAR_WARN);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(centerX("SICHERN", 3), 277);
-  printT("SICHERN");
+  setCur(centerX(forkLabel("SAVE", "SICHERN"), 3), 277);
+  printT(forkLabel("SAVE", "SICHERN"));
   setCur(centerX("RESTORE", 3), 339);
   printT("RESTORE");
 
   if (backupStatusUntil && millis() > backupStatusUntil) backupStatus = 0;
   if (backupStatus) {
     const char *msg = backupStatus == 1 ? "SAVE OK" :
-                     backupStatus == 2 ? "SAVE FEHLER" :
-                     backupStatus == 3 ? "RESTORE OK" : "RESTORE FEHLER";
+                     backupStatus == 2 ? forkLabel("SAVE FAILED", "SAVE FEHLER") :
+                     backupStatus == 3 ? "RESTORE OK" : forkLabel("RESTORE FAILED", "RESTORE FEHLER");
     gfx->setTextColor(backupStatus == 1 || backupStatus == 3 ? UI_BAR_OK : UI_BAR_BAD);
     setSize(1);
     setCur(centerX(msg, 1), 388);
