@@ -11,6 +11,7 @@
 #include <cstring>
 #include "Arduino_GFX_Library.h"
 #include "audio.h"
+#include "TamaDashEeveeSprites.h"
 
 extern Arduino_Canvas *gfx;
 
@@ -445,63 +446,31 @@ static void drawBranchTree(float tx) {
   circ(f, -40, 108, 20, c2);
 }
 
-static void drawFox() {
-  Frame f = frameAt(foxX, -jumpH, sc * 0.8f);
-  uint16_t org = rgb(242, 128, 42);
-  uint16_t dko = rgb(200, 92, 25);
-  uint16_t cre = rgb(255, 242, 218);
-  uint16_t brn = rgb(62, 36, 26);
+static void drawEeveeTestSprite() {
+  // First hardware test: one real Eevee frame from the supplied sprite sheet.
+  // The sprite keeps the same curved-ground coordinate system as the old fox.
+  Frame f = frameAt(foxX, -jumpH, sc * 1.8f);
 
-  float ph = runTime * 14.0f;
-  float wag = sinf(runTime * 9.0f) * 4.0f;
-  bool air = jumpH > 0.5f;
+  const int w = TD_EEVEE_RUN0_W;
+  const int h = TD_EEVEE_RUN0_H;
+  const float ox = (w - 1) * 0.5f;
 
-  auto leg = [&](float hx, float phase, uint16_t col) {
-    float fxo;
-    float fyo;
+  for (int sy = 0; sy < h; ++sy) {
+    for (int sx = 0; sx < w; ++sx) {
+      const uint8_t pi = TD_EEVEE_RUN0_PIXELS[sy * w + sx];
+      if (pi == 0) continue; // transparent source-sheet background
 
-    if (air) {
-      fxo = hx + (hx > 0 ? 11 : -11);
-      fyo = 5;
-    } else {
-      // Der Koerper bleibt unveraendert; nur die Beinbewegung wird umgekehrt.
-      fxo = hx - sinf(ph + phase) * 9;
-      fyo = fmaxf(0.0f, -cosf(ph + phase)) * 6;
+      int px, py;
+      const float lx = (float)sx - ox;
+      const float ly = (float)(h - 1 - sy);
+      P(f, lx, ly, px, py);
+
+      // A small square keeps the source pixel-art character intact.
+      const int ps = ri(sc * 1.8f);
+      g->fillRect(px, py, ps < 1 ? 1 : ps, ps < 1 ? 1 : ps,
+                  TD_EEVEE_RUN0_PALETTE[pi]);
     }
-
-    limb(f, hx, 17, fxo, fyo + 3, 5.5f, col);
-    circ(f, fxo, fyo + 3, 3.3f, brn);
-  };
-
-  // Langer, klarer buschiger Schwanz nach hinten.
-  tri(f, -10, 31, -10, 14, -52, 36 + wag, org);
-  circ(f, -28, 26, 10, org);
-  circ(f, -40, 31 + wag * 0.5f, 10.5f, org);
-  circ(f, -52, 36 + wag, 8.5f, cre);
-
-  leg(-9, 3.14159f, dko);
-  leg(13, 0, dko);
-
-  circ(f, -10, 24, 10.5f, org);
-  circ(f, 10, 24, 10.5f, org);
-  quad(f, -10, 13.5f, 10, 13.5f, 10, 34.5f, -10, 34.5f, org);
-  circ(f, 13, 25, 6, cre);
-
-  circ(f, 22, 38, 12, org);
-  tri(f, 28, 45, 30, 30, 43, 36, org);
-  tri(f, 23, 30, 32, 27, 41, 34, cre);
-  circ(f, 43, 36, 2.8f, brn);
-
-  tri(f, 11, 46, 13, 67, 24, 50, org);
-  tri(f, 19, 49, 29, 68, 32, 46, org);
-  tri(f, 14, 49, 15, 60, 21, 51, brn);
-  tri(f, 23, 51, 28, 61, 29, 48, brn);
-
-  circ(f, 26, 41, 3.4f, brn);
-  circ(f, 27, 42.3f, 1.2f, cre);
-
-  leg(-13, 0, brn);
-  leg(10, 3.14159f, brn);
+  }
 }
 
 static void textCentered(const char *s, float cxx, float y,
@@ -617,7 +586,7 @@ static void draw() {
     else if (obs[i].type == OB_BRANCH) drawBranchTree(obs[i].x);
   }
 
-  drawFox();
+  drawEeveeTestSprite();
   drawHud();
 }
 
