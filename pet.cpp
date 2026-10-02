@@ -258,7 +258,11 @@ bool Pet::backupToSD() {
   b.seen=lastSeenEpoch; memcpy(b.dexReg, dexReg, sizeof(b.dexReg));
   b.streak=streak; b.bestStreak=bestStreak; b.careDay=lastCareDay; b.bond=bond;
   b.medals=medals; b.totalMedals=totalMedals; b.milestone=lastMilestone;
-  b.gameHi=gameHi; b.strHi=strHi; b.dashBest=tamaDashBestScore(); memcpy(b.nick, nick, sizeof(b.nick));
+  b.gameHi=gameHi; b.strHi=strHi;
+  prefs.end();
+  b.dashBest=tamaDashBestScore();
+  prefs.begin("tamapoke", false);
+  memcpy(b.nick, nick, sizeof(b.nick));
   b.bright=prefs.getUChar("bright", 100);
   b.snd=prefs.getBool("snd", true) ? 1 : 0;
   b.vol=prefs.getUChar("vol", 100);
