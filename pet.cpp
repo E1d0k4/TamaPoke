@@ -1,7 +1,7 @@
 #include "pet.h"
 #include "dex.h"
 #include "audio.h"
-#include "TamaDash.h"
+#include "Vegg.h"
 #include "pin_config.h"
 
 #ifdef ARDUINO
@@ -324,7 +324,7 @@ bool Pet::backupToSD(uint8_t slot) {
   b.medals=medals; b.totalMedals=totalMedals; b.milestone=lastMilestone;
   b.gameHi=gameHi; b.strHi=strHi;
   prefs.end();
-  b.dashBest=tamaDashBestScore();
+  b.dashBest=veggBestScore();
   prefs.begin("tamapoke", false);
   memcpy(b.nick, nick, sizeof(b.nick));
   b.bright=prefs.getUChar("bright", 100);
@@ -381,7 +381,7 @@ bool Pet::restoreFromSD(uint8_t slot) {
   b.nick[sizeof(b.nick)-1] = 0; prefs.putString("nick", b.nick);
   prefs.putUChar("bright", b.bright); prefs.putBool("snd", b.snd != 0); prefs.putUChar("vol", b.vol);
   prefs.end();
-  tamaDashSetBestScore(b.dashBest);
+  veggSetBestScore(b.dashBest);
   prefs.begin("tamapoke", false);
 
   load();
