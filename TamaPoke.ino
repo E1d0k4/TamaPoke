@@ -1733,10 +1733,10 @@ void renderClock() {
   setCur(276, 211);
   printT(T(S_MIN));
 
-  gfx->fillRoundRect(246, 330, 150, 54, 14, UI_BAR_OK);
+  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(300, 343);
+  setCur(centerX("OK", 3), 401);
   printT("OK");
   gfx->flush();
 }
@@ -1756,10 +1756,11 @@ void renderBrightness() {
   printT(b);
   drawSettingButton(104, 290, "-");
   drawSettingButton(304, 290, "+");
-  gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
+
+  gfx->fillRoundRect(72, 370, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(304, 381);
+  setCur(centerX("OK", 3), 381);
   printT("OK");
   gfx->flush();
 }
@@ -1771,23 +1772,29 @@ void renderVolume() {
   setSize(3);
   setCur(centerX("LAUTSTAERKE", 3), 30);
   printT("LAUTSTAERKE");
-  drawSpeakerIcon(CX, 140, UI_INK);
+  drawSpeakerIcon(CX, 125, UI_INK);
   char v[8];
   snprintf(v, sizeof(v), "%u%%", audioVolume());
   setSize(6);
-  setCur(CX - 48, 190);
+  setCur(CX - 48, 170);
   printT(v);
-  drawSettingButton(104, 290, "-");
-  drawSettingButton(304, 290, "+");
-  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_BAR_OK);
+  drawSettingButton(104, 265, "-");
+  drawSettingButton(304, 265, "+");
+
+  // Sound an/aus gehoert zur Lautstaerke, nicht zur Sprachseite.
+  bool snd = audioEnabled();
+  const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
+  gfx->fillRoundRect(122, 330, 222, 38, 10, snd ? UI_BAR_OK : UI_WHITE);
+  gfx->drawRoundRect(122, 330, 222, 38, 10, UI_INK);
+  gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
+  setSize(2);
+  setCur(122 + (222 - textW(sl, 2)) / 2, 342);
+  printT(sl);
+
+  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(142, 381);
-  printT("OK");
-  gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(304, 381);
+  setCur(centerX("OK", 3), 401);
   printT("OK");
   gfx->flush();
 }
@@ -1800,34 +1807,26 @@ void renderLanguage() {
   setCur(centerX("SPRACHE", 3), 30);
   printT("SPRACHE");
   drawLanguageIcon(CX, 140, UI_INK);
-  setSize(5);
+
+  // Aktive Sprache mittig, die Pfeile direkt daneben. Kein grosser Auswahlbalken.
   char lp[12];
   snprintf(lp, sizeof(lp), "%s", LANG_CODES[gLang]);
-  setCur(centerX(lp, 5), 190);
+  setSize(5);
+  int lw = textW(lp, 5);
+  setCur(CX - lw / 2, 205);
   printT(lp);
 
-  gfx->fillRoundRect(104, 285, 258, 56, 14, UI_WHITE);
-  gfx->drawRoundRect(104, 285, 258, 56, 14, UI_INK);
+  setSize(4);
   gfx->setTextColor(UI_INK);
-  setSize(3);
-  setCur(126, 300);
+  setCur(CX - lw / 2 - 54, 200);
   printT("<");
-  setCur(330, 300);
+  setCur(CX + lw / 2 + 34, 200);
   printT(">");
 
-  bool snd = audioEnabled();
-  const char *sl = snd ? T(S_SND_ON) : T(S_SND_OFF);
-  gfx->fillRoundRect(92, 350, 282, 36, 10, snd ? UI_BAR_OK : UI_WHITE);
-  gfx->drawRoundRect(92, 350, 282, 36, 10, UI_INK);
-  gfx->setTextColor(snd ? UI_BG_DAY : UI_INK);
-  setSize(2);
-  setCur(92 + (282 - textW(sl, 2)) / 2, 362);
-  printT(sl);
-
-  gfx->fillRoundRect(254, 400, 140, 48, 12, UI_BAR_OK);
+  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(304, 411);
+  setCur(centerX("OK", 3), 401);
   printT("OK");
   gfx->flush();
 }
@@ -1998,9 +1997,8 @@ void settingsTap(int16_t x, int16_t y) {
       else if (x >= 318 && x < 376) clockM = (clockM + 1) % 60;
       return;
     }
-    if (y >= 330 && y <= 390) {
-      if (x >= 246 && x <= 396) { applyClock(); return; }
-      if (x >= 70 && x < 220) { settingsPage = 0; clockOpen = false; return; }
+    if (y >= 390 && y <= 445) {
+      applyClock(); return;
     }
   } else if (settingsPage == 2) {
     if (tamaDashHandleSunTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
@@ -2010,29 +2008,32 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       saveUserBrightness(); lastInteract = millis(); updateBrightness(millis()); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 370 && y <= 430 && x >= 254) {
+    if (y >= 370 && y <= 430) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 3) {
-    if (y >= 290 && y <= 348) {
+    if (y >= 265 && y <= 323) {
       if (x >= 104 && x < 190) audioSetVolume(audioVolume() <= 10 ? 10 : audioVolume() - 10);
       else if (x >= 304 && x < 390) audioSetVolume(audioVolume() >= 100 ? 100 : audioVolume() + 10);
       else return;
       sfxPlay(SFX_TAP); return;
     }
-    if (y >= 370 && y <= 430 && x >= 254) {
+    if (y >= 330 && y <= 368) {
+      audioSetEnabled(!audioEnabled());
+      if (audioEnabled()) sfxPlay(SFX_TAP);
+      return;
+    }
+    if (y >= 390 && y <= 445) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 4) {
-    if (y >= 285 && y <= 341) {
-      if (x < 220) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
-      else if (x > 290) setLang((Lang)((gLang + 1) % LANG_COUNT));
+    // Sprache: Pfeile direkt neben der aktuell aktiven Sprache.
+    if (y >= 180 && y <= 235) {
+      if (x < CX) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
+      else setLang((Lang)((gLang + 1) % LANG_COUNT));
       applyLangFont(); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 350 && y <= 390) {
-      audioSetEnabled(!audioEnabled()); if (audioEnabled()) sfxPlay(SFX_TAP); return;
-    }
-    if (y >= 400 && y <= 455 && x >= 254) {
+    if (y >= 390 && y <= 445) {
       settingsPage = 0; return;
     }
   } else if (settingsPage == 5) {
@@ -2556,6 +2557,12 @@ void drawBattery() {
 
 void drawHeader(const char *name, uint16_t nameColor, const char *msg) {
   drawBattery();
+  // Kleines A als sichtbare Sprach-/Uebersetzungsanzeige im Hauptbildschirm.
+  // Die eigentliche Sprachwahl bleibt ausschliesslich im Einstellungen-Menue.
+  gfx->setTextColor(inkColor());
+  setSize(2);
+  setCur(24, 10);
+  printT("A");
   gfx->setTextColor(nameColor);
   setSize(3);
   setCur(centerX(name, 3), 52);
