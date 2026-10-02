@@ -3,10 +3,14 @@
 #include "audio.h"
 #include "TamaDash.h"
 #include "pin_config.h"
+
+#ifdef ARDUINO
 #include <FS.h>
 #include <SD_MMC.h>
 #include <cstring>
+#endif
 
+#ifdef ARDUINO
 namespace {
 #pragma pack(push, 1)
 struct PetBackup {
@@ -43,6 +47,7 @@ static uint32_t backupCrc(const uint8_t *p, size_t n) {
 static constexpr const char *PET_BACKUP_PATH = "/tamapoke_backup.bin";
 static constexpr uint16_t PET_BACKUP_VERSION = 1;
 }
+#endif
 
 void Pet::begin() {
   prefs.begin("tamapoke", false);
@@ -239,6 +244,7 @@ void Pet::flushSave() {
   if (pendingSave) save();
 }
 
+#ifdef ARDUINO
 // Lokales Sicherungsformat auf der microSD. Es enthaelt bewusst alle Felder,
 // die save()/load() in NVS verwalten, plus die beiden Audio-Einstellungen und
 // den Fork-Helligkeitswert. Ein CRC schuetzt vor einem unvollstaendigen oder
@@ -313,6 +319,8 @@ bool Pet::restoreFromSD() {
   pendingSave = false;
   return true;
 }
+
+#endif
 
 // quedan miembros sin registrar en la linea evolutiva de esta base?
 bool Pet::lineHasUnregistered(int16_t base) const {
