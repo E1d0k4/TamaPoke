@@ -79,7 +79,12 @@ bool clockOpen = false;       // pagina de ajuste de hora dentro de Einstellunge
 int clockH = 12, clockM = 0;  // hora en edicion
 bool settingsOpen = false;    // nueva pagina de inicio de ajustes
 uint8_t settingsPage = 0;     // 0 home, 1 reloj, 2 brillo, 3 volumen, 4 idioma, 5 backup, 6 info
-bool backupConfirm = false;
+uint8_t backupConfirm = 0; // 0 = none, 1 = restore, 2 = overwrite
+bool backupInfoDirty = true;
+bool backupSlotValid[3] = { false, false, false };
+int16_t backupSlotSpecies[3] = { -1, -1, -1 };
+uint32_t backupSlotAge[3] = { 0, 0, 0 };
+uint32_t backupSlotSeen[3] = { 0, 0, 0 };
 uint8_t backupStatus = 0;     // 1 = backup ok, 2 = backup fail, 3 = restore ok, 4 = restore fail
 uint32_t backupStatusUntil = 0;
 uint8_t backupSlot = 1; // aktuell ausgewaehlter Spielstand 1..3
@@ -1602,11 +1607,11 @@ static void drawClockIcon(int cx, int cy, uint16_t col) {
 }
 
 static void drawLanguageIcon(int cx, int cy, uint16_t col) {
-  gfx->setTextColor(col);
-  setSize(6);
-  setCur(cx - 17, cy - 24);
-  printT("A");
-  gfx->drawLine(cx - 18, cy + 19, cx + 18, cy + 19, col);
+  gfx->drawCircle(cx, cy, 23, col);
+  gfx->drawLine(cx - 20, cy, cx + 20, cy, col);
+  gfx->drawLine(cx, cy - 20, cx, cy + 20, col);
+  gfx->drawArc(cx, cy, 12, 23, 0, 360, col);
+  gfx->drawArc(cx, cy, 12, 23, 180, 360, col);
 }
 
 static void drawBackupIcon(int cx, int cy, uint16_t col) {
@@ -1688,17 +1693,22 @@ void renderSettingsHome() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("EINSTELLUNGEN", 3), 28);
+  setCur(centerX("EINSTELLUNGEN", 3), 34);
   printT("EINSTELLUNGEN");
 
-  drawSettingsTile(48, 72, 0, "UHR");
-  drawSettingsTile(170, 72, 1, "HELL");
-  drawSettingsTile(292, 72, 2, "TON");
-  drawSettingsTile(48, 218, 3, "SPRACHE");
-  drawSettingsTile(170, 218, 4, "BACKUP");
-  drawSettingsTile(292, 218, 5, "INFO");
+  // Etwas tiefer und mit mehr Luft zum Titel.
+  drawSettingsTile(48, 82, 0, "UHR");
+  drawSettingsTile(170, 82, 1, "HELL");
+  drawSettingsTile(292, 82, 2, "TON");
+  drawSettingsTile(48, 216, 3, "SPRACHE");
+  drawSettingsTile(170, 216, 4, "BACKUP");
+  drawSettingsTile(292, 216, 5, "INFO");
 
-  drawSettingsBack(38, 42, UI_INK);
+  gfx->fillRoundRect(72, 378, 324, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(centerX("OK", 3), 389);
+  printT("OK");
   gfx->flush();
 }
 
@@ -1753,9 +1763,11 @@ void renderBrightness() {
   printT(b);
   drawSettingButton(104, 290, "-");
   drawSettingButton(304, 290, "+");
-  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_WHITE);
-  gfx->drawRoundRect(72, 370, 140, 48, 12, UI_INK);
-  drawSettingsBack(142, 394, UI_INK);
+  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(142, 381);
+  printT("OK");
   gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -1779,9 +1791,11 @@ void renderVolume() {
   printT(v);
   drawSettingButton(104, 290, "-");
   drawSettingButton(304, 290, "+");
-  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_WHITE);
-  gfx->drawRoundRect(72, 370, 140, 48, 12, UI_INK);
-  drawSettingsBack(142, 394, UI_INK);
+  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(142, 381);
+  printT("OK");
   gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -1822,9 +1836,11 @@ void renderLanguage() {
   setCur(92 + (282 - textW(sl, 2)) / 2, 362);
   printT(sl);
 
-  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
-  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
-  drawSettingsBack(142, 424, UI_INK);
+  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(142, 411);
+  printT("OK");
   gfx->fillRoundRect(254, 400, 140, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -1833,64 +1849,104 @@ void renderLanguage() {
   gfx->flush();
 }
 
+static void refreshBackupSlotInfo() {
+  for (uint8_t i = 0; i < 3; i++) {
+    backupSlotValid[i] = pet.backupSlotInfo(i + 1, backupSlotSpecies[i], backupSlotAge[i], backupSlotSeen[i]);
+  }
+  backupInfoDirty = false;
+}
+
+static void formatBackupDate(uint32_t epoch, char *out, size_t n) {
+  if (!epoch) {
+    snprintf(out, n, "--.-- --:--");
+    return;
+  }
+  time_t tt = (time_t)epoch;
+  struct tm tmv{};
+  gmtime_r(&tt, &tmv);
+  snprintf(out, n, "%02d.%02d %02d:%02d",
+           tmv.tm_mday, tmv.tm_mon + 1, tmv.tm_hour, tmv.tm_min);
+}
+
 void renderBackup() {
+  if (backupInfoDirty) refreshBackupSlotInfo();
+
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX("SPIELSTAENDE", 3), 30);
+  setCur(centerX("SPIELSTAENDE", 3), 24);
   printT("SPIELSTAENDE");
-  drawBackupIcon(CX, 100, UI_INK);
+  drawBackupIcon(CX, 78, UI_INK);
 
   if (backupConfirm) {
-    gfx->fillRoundRect(48, 166, 370, 238, 18, UI_WHITE);
-    gfx->drawRoundRect(48, 166, 370, 238, 18, UI_INK);
+    gfx->fillRoundRect(48, 152, 370, 244, 18, UI_WHITE);
+    gfx->drawRoundRect(48, 152, 370, 244, 18, UI_INK);
     gfx->setTextColor(UI_INK);
     setSize(3);
-    char q[24];
-    snprintf(q, sizeof(q), "RESTORE %u?", backupSlot);
-    setCur(centerX(q, 3), 198);
+    char q[32];
+    if (backupConfirm == 2) snprintf(q, sizeof(q), "SAVE %u?", backupSlot);
+    else snprintf(q, sizeof(q), "RESTORE %u?", backupSlot);
+    setCur(centerX(q, 3), 184);
     setSize(2);
-    setCur(centerX("SPIELSTAND ERSETZEN", 2), 238);
-    gfx->fillRoundRect(70, 305, 140, 58, 12, UI_BAR_BAD);
-    gfx->fillRoundRect(256, 305, 140, 58, 12, UI_BAR_OK);
+    const char *msg = backupConfirm == 2 ? "SPIELSTAND UEBERSCHREIBEN" : "SPIELSTAND ERSETZEN";
+    setCur(centerX(msg, 2), 224);
+    gfx->fillRoundRect(70, 300, 140, 58, 12, UI_BAR_BAD);
+    gfx->fillRoundRect(256, 300, 140, 58, 12, UI_BAR_OK);
     gfx->setTextColor(UI_BG_DAY);
     setSize(3);
-    setCur(116, 320); printT("NEIN");
-    setCur(300, 320); printT("JA");
+    setCur(116, 315); printT("NEIN");
+    setCur(300, 315); printT("JA");
     gfx->flush();
     return;
   }
 
   gfx->setTextColor(UI_INK);
   setSize(2);
-  setCur(centerX("3 SPEICHERPLAETZE", 2), 142);
+  setCur(centerX("3 SPEICHERPLAETZE", 2), 118);
   printT("3 SPEICHERPLAETZE");
 
   for (uint8_t i = 1; i <= 3; i++) {
     int x = 48 + (i - 1) * 126;
-    bool used = pet.backupSlotExists(i);
-    gfx->fillRoundRect(x, 168, 114, 112, 16, i == backupSlot ? UI_BAR_OK : UI_WHITE);
-    gfx->drawRoundRect(x, 168, 114, 112, 16, UI_INK);
+    bool used = backupSlotValid[i - 1];
+    gfx->fillRoundRect(x, 138, 114, 112, 16, i == backupSlot ? UI_BAR_OK : UI_WHITE);
+    gfx->drawRoundRect(x, 138, 114, 112, 16, UI_INK);
     gfx->setTextColor(i == backupSlot ? UI_BG_DAY : UI_INK);
     setSize(4);
     char n[4];
     snprintf(n, sizeof(n), "%u", i);
-    setCur(x + 49, 181);
+    setCur(x + 49, 151);
     printT(n);
+
     setSize(2);
-    const char *state = used ? "BELEGT" : "LEER";
-    setCur(x + 57 - textW(state, 2) / 2, 238);
-    printT(state);
+    if (!used) {
+      const char *state = "LEER";
+      setCur(x + 57 - textW(state, 2) / 2, 208);
+      printT(state);
+    } else {
+      const char *name = (backupSlotSpecies[i - 1] >= 1 && backupSlotSpecies[i - 1] <= DEX_COUNT)
+                           ? dexName(backupSlotSpecies[i - 1]) : "EI";
+      setSize(1);
+      setCur(x + 57 - textW(name, 1) / 2, 201);
+      printT(name);
+      char meta[32];
+      char stamp[20];
+      formatBackupDate(backupSlotSeen[i - 1], stamp, sizeof(stamp));
+      snprintf(meta, sizeof(meta), "LV %u  %s",
+               (unsigned)(1 + backupSlotAge[i - 1] / MINUTES_PER_LEVEL), stamp);
+      setSize(1);
+      setCur(x + 57 - textW(meta, 1) / 2, 220);
+      printT(meta);
+    }
   }
 
-  gfx->fillRoundRect(62, 300, 342, 58, 14, UI_BAR_OK);
-  gfx->fillRoundRect(62, 370, 342, 58, 14, UI_BAR_WARN);
+  gfx->fillRoundRect(62, 266, 342, 52, 14, UI_BAR_OK);
+  gfx->fillRoundRect(62, 328, 342, 52, 14, UI_BAR_WARN);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(centerX("SICHERN", 3), 316);
+  setCur(centerX("SICHERN", 3), 277);
   printT("SICHERN");
-  setCur(centerX("RESTORE", 3), 386);
+  setCur(centerX("RESTORE", 3), 339);
   printT("RESTORE");
 
   if (backupStatusUntil && millis() > backupStatusUntil) backupStatus = 0;
@@ -1899,15 +1955,18 @@ void renderBackup() {
                      backupStatus == 2 ? "SAVE FEHLER" :
                      backupStatus == 3 ? "RESTORE OK" : "RESTORE FEHLER";
     gfx->setTextColor(backupStatus == 1 || backupStatus == 3 ? UI_BAR_OK : UI_BAR_BAD);
-    setSize(2);
-    setCur(centerX(msg, 2), 438);
+    setSize(1);
+    setCur(centerX(msg, 1), 388);
     printT(msg);
   }
 
-  drawSettingsBack(38, 42, UI_INK);
+  gfx->fillRoundRect(72, 404, 324, 44, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(centerX("OK", 3), 414);
+  printT("OK");
   gfx->flush();
 }
-
 void renderInfo() {
   gfx->fillScreen(RGB565_BLACK);
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
@@ -1924,30 +1983,28 @@ void renderInfo() {
   setCur(centerX("SD SAVE SLOTS: 1 / 2 / 3", 2), 205); printT("SD SAVE SLOTS: 1 / 2 / 3");
   setCur(centerX("TamaPoke", 2), 260); printT("TamaPoke");
   setCur(centerX("ESP32-S3 / 466x466", 2), 290); printT("ESP32-S3 / 466x466");
-  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_WHITE);
-  gfx->drawRoundRect(72, 400, 140, 48, 12, UI_INK);
-  drawSettingsBack(142, 424, UI_INK);
+  gfx->fillRoundRect(72, 400, 324, 44, 12, UI_BAR_OK);
+  gfx->setTextColor(UI_BG_DAY);
+  setSize(3);
+  setCur(centerX("OK", 3), 410);
+  printT("OK");
   gfx->flush();
 }
 
 void settingsTap(int16_t x, int16_t y) {
   if (settingsPage == 0) {
-    if (x >= 10 && x <= 90 && y <= 75) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
-    if (y >= 72 && y < 188) {
+    if (y >= 378 && y <= 430 && x >= 72 && x <= 396) { settingsOpen = false; tamaDashResetEasterEgg(); return; }
+    if (y >= 82 && y < 198) {
       if (x >= 48 && x < 174) { openClock(); return; }
       if (x >= 170 && x < 296) { settingsPage = 2; return; }
       if (x >= 292 && x < 418) { settingsPage = 3; return; }
     }
-    if (y >= 218 && y < 334) {
+    if (y >= 216 && y < 332) {
       if (x >= 48 && x < 174) { settingsPage = 4; return; }
-      if (x >= 170 && x < 296) { settingsPage = 5; backupConfirm = false; return; }
+      if (x >= 170 && x < 296) { settingsPage = 5; backupConfirm = 0; backupInfoDirty = true; return; }
       if (x >= 292 && x < 418) { settingsPage = 6; return; }
     }
     return;
-  }
-
-  if (y < 72 && x < 100) {
-    settingsPage = 0; clockOpen = false; backupConfirm = false; tamaDashResetEasterEgg(); return;
   }
 
   if (settingsPage == 1) {
@@ -2000,47 +2057,59 @@ void settingsTap(int16_t x, int16_t y) {
     }
   } else if (settingsPage == 5) {
     if (backupConfirm) {
-      if (y >= 305 && y <= 375 && x >= 256) {
-        backupConfirm = false;
-        bool ok = pet.restoreFromSD(backupSlot);
-        if (ok) {
-          Preferences p;
-          p.begin("tamapoke", true);
-          userBrightness = p.getUChar("bright", 100);
-          bool snd = p.getBool("snd", true);
-          uint8_t vol = p.getUChar("vol", 100);
-          p.end();
-          audioSetVolume(vol);
-          audioSetEnabled(snd);
-          updateBrightness(millis());
+      if (y >= 300 && y <= 358 && x >= 256) {
+        uint8_t action = backupConfirm;
+        backupConfirm = 0;
+        if (action == 2) {
+          bool ok = pet.backupToSD(backupSlot);
+          backupStatus = ok ? 1 : 2; backupStatusUntil = millis() + 2500;
+          backupInfoDirty = true;
+        } else {
+          bool ok = pet.restoreFromSD(backupSlot);
+          if (ok) {
+            Preferences p;
+            p.begin("tamapoke", true);
+            userBrightness = p.getUChar("bright", 100);
+            bool snd = p.getBool("snd", true);
+            uint8_t vol = p.getUChar("vol", 100);
+            p.end();
+            audioSetVolume(vol);
+            audioSetEnabled(snd);
+            updateBrightness(millis());
+          }
+          backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
         }
-        backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
         return;
       }
-      if (y >= 305 && y <= 375 && x >= 70 && x < 210) { backupConfirm = false; return; }
+      if (y >= 300 && y <= 358 && x >= 70 && x < 210) { backupConfirm = 0; return; }
       return;
     }
 
-    if (y >= 168 && y <= 280) {
+    if (y >= 138 && y <= 250) {
       if (x >= 48 && x < 162) backupSlot = 1;
       else if (x >= 174 && x < 288) backupSlot = 2;
       else if (x >= 300 && x < 414) backupSlot = 3;
       return;
     }
-    if (y >= 300 && y <= 358) {
+    if (y >= 266 && y <= 318) {
+      if (backupSlotValid[backupSlot - 1]) {
+        backupConfirm = 2;
+        return;
+      }
       bool ok = pet.backupToSD(backupSlot);
       backupStatus = ok ? 1 : 2; backupStatusUntil = millis() + 2500;
+      backupInfoDirty = true;
       return;
     }
-    if (y >= 370 && y <= 428) {
-      if (!pet.backupSlotExists(backupSlot)) {
+    if (y >= 328 && y <= 380) {
+      if (!backupSlotValid[backupSlot - 1]) {
         backupStatus = 4; backupStatusUntil = millis() + 2500;
         return;
       }
-      backupConfirm = true;
+      backupConfirm = 1;
       return;
     }
-    if (y >= 400 && y <= 455 && x < 220) { settingsPage = 0; return; }  } else if (settingsPage == 6) {
+    if (y >= 404 && y <= 452) { settingsPage = 0; return; }  } else if (settingsPage == 6) {
     if (y >= 400 && y <= 455) { settingsPage = 0; return; }
   }
 }
