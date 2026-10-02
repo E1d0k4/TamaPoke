@@ -2,17 +2,17 @@
 
 This fork keeps the original TamaPoke firmware as the base and adds a small set of device settings without changing the original game logic.
 
-### Fork 0.2.0
+### Fork 0.2.5
 
 - 💾 **Safe firmware updates:** the web installer now flashes the bootloader, partition table, boot_app0 and application as separate parts instead of one merged binary. This keeps the NVS save area intact when **Erase device** is not selected.
-- 🏃 **Tama Dash:** hidden endless-runner easter egg, launched by tapping the sun icon five times on the brightness page. It has jumping, berry bushes, overhead branches, increasing speed, score/highscore persistence and a game-over timeout.
 - 🔆 **Brightness:** adjustable from 10% to 100%, saved across reboots.
 - 🔊 **Volume:** adjustable from 10% to 100%, saved across reboots.
 - 🌙 **Automatic dimming:** the original inactivity dimming behavior is preserved; the configured brightness is used as the normal brightness level, with dimming still working relative to it.
-- ⚙️ **Settings:** brightness, volume, language and sound are integrated into the existing clock/language settings screen.
+- ⚙️ **Settings:** the settings screen is now a graphical home page with separate sub-pages for clock, brightness, volume, language, backup and information.
 - 🖼️ **Symbol controls:** brightness and volume use graphical icons instead of text labels such as "Bri" or "Vol".
-- 🔢 **Versions:** original version **1.17** and fork version **0.2.0** are shown separately.
-- 🌐 **Web installer:** [Install TamaPoke 0.2.0 directly in your browser](https://e1d0k4.github.io/TamaPoke/) — no Arduino setup required.
+- 💾 **SD backup:** save the complete game state and fork settings to microSD and restore it locally from the device.
+- 🔢 **Versions:** original version **1.17** and fork version **0.2.5** are shown separately.
+- 🌐 **Web installer:** [Install TamaPoke 0.2.5 directly in your browser](https://e1d0k4.github.io/TamaPoke/) — no Arduino setup required.
 
 The original README below this section is kept unchanged.
 
