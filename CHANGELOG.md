@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.5] - 2026-10-02
+
+### Added
+
+- Graphical settings home page with separate sub-pages for clock, brightness, volume, language, backup and information.
+- Local microSD backup and restore with a versioned binary format and CRC validation.
+- Backup includes the TamaPoke save state, fork settings and Tama Dash highscore.
+
+### Changed
+
+- Tama Dash remains a hidden easter egg and is intentionally not documented in the fork README.
+- Firmware version updated to 0.2.5.
+
+
+
 All notable changes to the firmware. Versions match the number shown at the
 bottom of the clock/settings screen (swipe down) and `web/manifest.json`.
 
