@@ -1,6 +1,46 @@
 #include "pet.h"
 #include "dex.h"
 #include "audio.h"
+#include "pin_config.h"
+#include <FS.h>
+#include <SD_MMC.h>
+#include <cstring>
+
+namespace {
+#pragma pack(push, 1)
+struct PetBackup {
+  char magic[4];
+  uint16_t version;
+  uint16_t size;
+  uint32_t crc;
+  uint8_t full, joy, ene, hyg, poop, wgt;
+  uint8_t gatk, gdef, gspe, tatk, tdef, tspe;
+  uint8_t berryKnown, shiny, eggShiny, starterPick;
+  uint8_t dexShiny[19];
+  uint32_t age;
+  int16_t species, eggTarget;
+  uint8_t eggTaps, mistakes, sleeping, lastEnd;
+  uint32_t seen;
+  uint8_t dexReg[19];
+  uint16_t streak, bestStreak;
+  uint32_t careDay;
+  uint8_t bond;
+  uint16_t medals, totalMedals, milestone;
+  uint16_t gameHi, strHi;
+  char nick[12];
+  uint8_t bright, snd, vol;
+};
+#pragma pack(pop)
+
+static uint32_t backupCrc(const uint8_t *p, size_t n) {
+  uint32_t h = 2166136261u;
+  while (n--) { h ^= *p++; h *= 16777619u; }
+  return h;
+}
+
+static constexpr const char *PET_BACKUP_PATH = "/tamapoke_backup.bin";
+static constexpr uint16_t PET_BACKUP_VERSION = 1;
+}
 
 void Pet::begin() {
   prefs.begin("tamapoke", false);
@@ -195,6 +235,74 @@ void Pet::tick() {
 // animacion para que el paron de la escritura a flash no se vea)
 void Pet::flushSave() {
   if (pendingSave) save();
+}
+
+// Lokales Sicherungsformat auf der microSD. Es enthaelt bewusst alle Felder,
+// die save()/load() in NVS verwalten, plus die beiden Audio-Einstellungen und
+// den Fork-Helligkeitswert. Ein CRC schuetzt vor einem unvollstaendigen oder
+// beschaedigten Backup; ein ungueltiges Backup wird niemals eingespielt.
+bool Pet::backupToSD() {
+  if (!SD_MMC.cardSize()) return false;
+  PetBackup b{};
+  memcpy(b.magic, "TPKB", 4);
+  b.version = PET_BACKUP_VERSION;
+  b.size = sizeof(PetBackup);
+  b.full=fullness; b.joy=joy; b.ene=energy; b.hyg=hygiene; b.poop=poops; b.wgt=weight;
+  b.gatk=geneAtk; b.gdef=geneDef; b.gspe=geneSpe; b.tatk=trAtk; b.tdef=trDef; b.tspe=trSpe;
+  b.berryKnown=berryKnown; b.shiny=shiny; b.eggShiny=eggShiny; b.starterPick=starterPick;
+  memcpy(b.dexShiny, dexShinyReg, sizeof(b.dexShiny));
+  b.age=ageMinutes; b.species=speciesId; b.eggTarget=eggTarget;
+  b.eggTaps=eggTaps; b.mistakes=careMistakes; b.sleeping=sleeping; b.lastEnd=lastEnd;
+  b.seen=lastSeenEpoch; memcpy(b.dexReg, dexReg, sizeof(b.dexReg));
+  b.streak=streak; b.bestStreak=bestStreak; b.careDay=lastCareDay; b.bond=bond;
+  b.medals=medals; b.totalMedals=totalMedals; b.milestone=lastMilestone;
+  b.gameHi=gameHi; b.strHi=strHi; memcpy(b.nick, nick, sizeof(b.nick));
+  b.bright=prefs.getUChar("bright", 100);
+  b.snd=prefs.getBool("snd", true) ? 1 : 0;
+  b.vol=prefs.getUChar("vol", 100);
+  b.crc = 0;
+  b.crc = backupCrc(reinterpret_cast<const uint8_t*>(&b) + 10, sizeof(PetBackup) - 10);
+
+  if (SD_MMC.exists(PET_BACKUP_PATH)) SD_MMC.remove(PET_BACKUP_PATH);
+  File f = SD_MMC.open(PET_BACKUP_PATH, FILE_WRITE);
+  if (!f) return false;
+  size_t written = f.write(reinterpret_cast<const uint8_t*>(&b), sizeof(b));
+  f.close();
+  return written == sizeof(b);
+}
+
+bool Pet::restoreFromSD() {
+  if (!SD_MMC.cardSize()) return false;
+  File f = SD_MMC.open(PET_BACKUP_PATH, FILE_READ);
+  if (!f || f.size() != sizeof(PetBackup)) { if (f) f.close(); return false; }
+  PetBackup b{};
+  size_t got = f.read(reinterpret_cast<uint8_t*>(&b), sizeof(b));
+  f.close();
+  if (got != sizeof(b) || memcmp(b.magic, "TPKB", 4) != 0 ||
+      b.version != PET_BACKUP_VERSION || b.size != sizeof(PetBackup)) return false;
+  uint32_t stored = b.crc;
+  b.crc = 0;
+  if (backupCrc(reinterpret_cast<const uint8_t*>(&b) + 10, sizeof(PetBackup) - 10) != stored) return false;
+
+  prefs.putUChar("full", b.full); prefs.putUChar("joy", b.joy); prefs.putUChar("ene", b.ene);
+  prefs.putUChar("hyg", b.hyg); prefs.putUChar("poop", b.poop); prefs.putUChar("wgt", b.wgt);
+  prefs.putUChar("gatk", b.gatk); prefs.putUChar("gdef", b.gdef); prefs.putUChar("gspe", b.gspe);
+  prefs.putUChar("tatk", b.tatk); prefs.putUChar("tdef", b.tdef); prefs.putUChar("tspe", b.tspe);
+  prefs.putBool("bk", b.berryKnown); prefs.putBool("shy", b.shiny); prefs.putBool("eshy", b.eggShiny);
+  prefs.putBool("stpk", b.starterPick); prefs.putBytes("dexsh", b.dexShiny, sizeof(b.dexShiny));
+  prefs.putUInt("age", b.age); prefs.putShort("dexn", b.species); prefs.putShort("eggT2", b.eggTarget);
+  prefs.putUChar("crack", b.eggTaps); prefs.putUChar("mist", b.mistakes); prefs.putBool("sleep", b.sleeping);
+  prefs.putUChar("lend", b.lastEnd); if (b.seen) prefs.putUInt("seen", b.seen);
+  prefs.putBytes("dexreg", b.dexReg, sizeof(b.dexReg)); prefs.putUShort("strk", b.streak);
+  prefs.putUShort("bstrk", b.bestStreak); prefs.putUInt("cday", b.careDay); prefs.putUChar("bond", b.bond);
+  prefs.putUShort("medal", b.medals); prefs.putUShort("tmedal", b.totalMedals);
+  prefs.putUShort("mstone", b.milestone); prefs.putUShort("ghi", b.gameHi); prefs.putUShort("shi", b.strHi);
+  b.nick[sizeof(b.nick)-1] = 0; prefs.putString("nick", b.nick);
+  prefs.putUChar("bright", b.bright); prefs.putBool("snd", b.snd != 0); prefs.putUChar("vol", b.vol);
+
+  load();
+  pendingSave = false;
+  return true;
 }
 
 // quedan miembros sin registrar en la linea evolutiva de esta base?
