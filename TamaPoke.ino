@@ -1619,8 +1619,6 @@ void drawClockBtn(int x, int y, const char *l) {
 #define LANG_PILL_W 96
 static const char *const LANG_CODES[LANG_COUNT] = { "ES", "EN", "FR", "DE", "IT", "PT", "JA", "KO" };
 
-static const char *const LANG_CODES[LANG_COUNT] = { "ES", "EN", "FR", "DE", "IT", "PT", "JA", "KO" };
-
 static void drawClockIcon(int cx, int cy, uint16_t col) {
   gfx->drawCircle(cx, cy, 24, col);
   gfx->drawLine(cx, cy, cx, cy - 13, col);
