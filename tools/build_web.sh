@@ -9,14 +9,21 @@ echo "Compilando..."
 arduino-cli compile --fqbn "$FQBN" --export-binaries .
 
 B=build/esp32.esp32.esp32s3
-echo "Fusionando binarios..."
-esptool.py --chip esp32s3 merge-bin -o web/firmware/tamapoke.bin \
-  0x0     "$B/TamaPoke.ino.bootloader.bin" \
-  0x8000  "$B/TamaPoke.ino.partitions.bin" \
-  0xe000  "$B/boot_app0.bin" \
-  0x10000 "$B/TamaPoke.ino.bin"
+echo "Preparando partes para el instalador web..."
+# IMPORTANTE: no usamos un merged binary unico. Un merged binary empezando en
+# 0x0 obliga al flasher a borrar sectores hasta el final de la aplicacion,
+# incluyendo NVS (0x9000...), aunque el usuario NO marque "Erase device".
+# Las partes separadas permiten actualizar bootloader/tabla/app sin tocar NVS.
+mkdir -p web/firmware
+cp "$B/TamaPoke.ino.bootloader.bin" web/firmware/bootloader.bin
+cp "$B/TamaPoke.ino.partitions.bin" web/firmware/partitions.bin
+cp "$B/boot_app0.bin" web/firmware/boot_app0.bin
+cp "$B/TamaPoke.ino.bin" web/firmware/firmware.bin
 
-echo "OK -> web/firmware/tamapoke.bin ($(du -h web/firmware/tamapoke.bin | cut -f1))"
+echo "OK -> web/firmware/bootloader.bin"
+echo "OK -> web/firmware/partitions.bin"
+echo "OK -> web/firmware/boot_app0.bin"
+echo "OK -> web/firmware/firmware.bin"
 
 echo "Empaquetando sprites..."
 python3 tools/pack_bundle.py
