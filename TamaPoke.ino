@@ -1713,24 +1713,24 @@ void renderClock() {
   gfx->fillCircle(CX, CY, 231, UI_BG_DAY);
   gfx->setTextColor(UI_INK);
   setSize(3);
-  setCur(centerX(T(S_SET_TIME), 3), 34);
+  setCur(centerX(T(S_SET_TIME), 3), 30);
   printT(T(S_SET_TIME));
 
   char t[8];
   snprintf(t, sizeof(t), "%02d:%02d", clockH, clockM);
   setSize(6);
-  setCur(CX - 90, 78);
+  setCur(CX - 90, 168);
   printT(t);
 
-  drawClockBtn(104, 145, "-");
-  drawClockBtn(170, 145, "+");
-  drawClockBtn(252, 145, "-");
-  drawClockBtn(318, 145, "+");
+  drawClockBtn(104, 265, "-");
+  drawClockBtn(170, 265, "+");
+  drawClockBtn(252, 265, "-");
+  drawClockBtn(318, 265, "+");
   setSize(2);
   gfx->setTextColor(UI_TRACK);
-  setCur(120, 211);
+  setCur(120, 325);
   printT(T(S_HOUR));
-  setCur(276, 211);
+  setCur(276, 325);
   printT(T(S_MIN));
 
   gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
@@ -1748,19 +1748,19 @@ void renderBrightness() {
   setSize(3);
   setCur(centerX("HELLIGKEIT", 3), 30);
   printT("HELLIGKEIT");
-  drawSunIcon(CX, 140, UI_INK);
+  drawSunIcon(CX, 125, UI_INK);
   char b[8];
   snprintf(b, sizeof(b), "%u%%", userBrightness);
   setSize(6);
-  setCur(CX - 48, 190);
+  setCur(CX - 48, 168);
   printT(b);
-  drawSettingButton(104, 290, "-");
-  drawSettingButton(304, 290, "+");
+  drawSettingButton(104, 265, "-");
+  drawSettingButton(304, 265, "+");
 
-  gfx->fillRoundRect(72, 370, 324, 48, 12, UI_BAR_OK);
+  gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
-  setCur(centerX("OK", 3), 381);
+  setCur(centerX("OK", 3), 401);
   printT("OK");
   gfx->flush();
 }
@@ -1776,7 +1776,7 @@ void renderVolume() {
   char v[8];
   snprintf(v, sizeof(v), "%u%%", audioVolume());
   setSize(6);
-  setCur(CX - 48, 170);
+  setCur(CX - 48, 168);
   printT(v);
   drawSettingButton(104, 265, "-");
   drawSettingButton(304, 265, "+");
@@ -1806,22 +1806,18 @@ void renderLanguage() {
   setSize(3);
   setCur(centerX("SPRACHE", 3), 30);
   printT("SPRACHE");
-  drawLanguageIcon(CX, 140, UI_INK);
+  drawLanguageIcon(CX, 125, UI_INK);
 
-  // Aktive Sprache mittig, die Pfeile direkt daneben. Kein grosser Auswahlbalken.
+  // Sprache wie Helligkeit/Lautstaerke: Wert mittig, +/- als gleiche runde Tasten.
   char lp[12];
   snprintf(lp, sizeof(lp), "%s", LANG_CODES[gLang]);
   setSize(5);
   int lw = textW(lp, 5);
-  setCur(CX - lw / 2, 205);
+  setCur(CX - lw / 2, 168);
   printT(lp);
 
-  setSize(4);
-  gfx->setTextColor(UI_INK);
-  setCur(CX - lw / 2 - 54, 200);
-  printT("<");
-  setCur(CX + lw / 2 + 34, 200);
-  printT(">");
+  drawSettingButton(104, 265, "-");
+  drawSettingButton(304, 265, "+");
 
   gfx->fillRoundRect(72, 390, 324, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
@@ -2563,8 +2559,12 @@ void drawHeader(const char *name, uint16_t nameColor, const char *msg) {
   // Die eigentliche Sprachwahl bleibt ausschliesslich im Einstellungen-Menue.
   gfx->setTextColor(inkColor());
   setSize(2);
-  setCur(410, 10);
+  setCur(406, 10);
   printT("A");
+  // kleines Gegenzeichen fuer Uebersetzung: A <-> Sprache, ohne zusaetzliche Menue-Kachel
+  gfx->drawLine(425, 16, 438, 16, inkColor());
+  gfx->drawLine(434, 12, 438, 16, inkColor());
+  gfx->drawLine(434, 20, 438, 16, inkColor());
   gfx->setTextColor(nameColor);
   setSize(3);
   setCur(centerX(name, 3), 52);
