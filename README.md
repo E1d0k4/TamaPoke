@@ -2,7 +2,7 @@
 
 This fork keeps the original TamaPoke firmware as the base and adds a small set of device settings without changing the original game logic.
 
-### Fork 0.2.5
+### Fork 0.2.6
 
 - 💾 **Safe firmware updates:** the web installer now flashes the bootloader, partition table, boot_app0 and application as separate parts instead of one merged binary. This keeps the NVS save area intact when **Erase device** is not selected.
 - 🔆 **Brightness:** adjustable from 10% to 100%, saved across reboots.
@@ -10,9 +10,9 @@ This fork keeps the original TamaPoke firmware as the base and adds a small set 
 - 🌙 **Automatic dimming:** the original inactivity dimming behavior is preserved; the configured brightness is used as the normal brightness level, with dimming still working relative to it.
 - ⚙️ **Settings:** the settings screen is now a graphical home page with separate sub-pages for clock, brightness, volume, language, backup and information.
 - 🖼️ **Symbol controls:** brightness and volume use graphical icons instead of text labels such as "Bri" or "Vol".
-- 💾 **SD backup:** save the complete game state and fork settings to microSD and restore it locally from the device.
-- 🔢 **Versions:** original version **1.17** and fork version **0.2.5** are shown separately.
-- 🌐 **Web installer:** [Install TamaPoke 0.2.5 directly in your browser](https://e1d0k4.github.io/TamaPoke/) — no Arduino setup required.
+- 💾 **SD save games:** three independent save slots (1 / 2 / 3) store the complete game state and fork settings on microSD and can be restored locally from the device. Saving a slot replaces only that slot.
+- 🔢 **Versions:** original version **1.17** and fork version **0.2.6** are shown separately.
+- 🌐 **Web installer:** [Install TamaPoke 0.2.6 directly in your browser](https://e1d0k4.github.io/TamaPoke/) — no Arduino setup required.
 
 The original README below this section is kept unchanged.
 
