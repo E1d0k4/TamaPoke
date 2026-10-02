@@ -170,8 +170,9 @@ public:
   // ultima hora real persistida; sirve para resembrar un RTC que perdio la hora
   uint32_t savedEpoch() { return prefs.getUInt("seen", 0); }
   void flushSave();
-  bool backupToSD();
-  bool restoreFromSD();
+  bool backupToSD(uint8_t slot);
+  bool restoreFromSD(uint8_t slot);
+  bool backupSlotExists(uint8_t slot) const;
 
 private:
   Preferences prefs;
