@@ -1986,7 +1986,7 @@ void settingsTap(int16_t x, int16_t y) {
   }
 
   if (settingsPage == 1) {
-    if (y >= 145 && y <= 203) {
+    if (y >= 265 && y <= 323) {
       if (x >= 104 && x < 162) clockH = (clockH + 23) % 24;
       else if (x >= 170 && x < 228) clockH = (clockH + 1) % 24;
       else if (x >= 252 && x < 310) clockM = (clockM + 59) % 60;
@@ -2024,10 +2024,10 @@ void settingsTap(int16_t x, int16_t y) {
     }
   } else if (settingsPage == 4) {
     // Sprache: Pfeile direkt neben der aktuell aktiven Sprache.
-    if (y >= 180 && y <= 235) {
-      // Nur die beiden Pfeilbereiche wechseln die Sprache.
-      if (x >= 145 && x < 225) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
-      else if (x > 241 && x <= 321) setLang((Lang)((gLang + 1) % LANG_COUNT));
+    if (y >= 265 && y <= 323) {
+      // Nur die beiden +/- Tasten wechseln die Sprache.
+      if (x >= 104 && x < 190) setLang((Lang)((gLang + LANG_COUNT - 1) % LANG_COUNT));
+      else if (x >= 304 && x < 390) setLang((Lang)((gLang + 1) % LANG_COUNT));
       else return;
       applyLangFont(); sfxPlay(SFX_TAP); return;
     }
