@@ -2003,7 +2003,7 @@ void settingsTap(int16_t x, int16_t y) {
     }
   } else if (settingsPage == 5) {
     if (backupConfirm) {
-      if (y >= 350 && y <= 430 && x >= 254) {
+      if (y >= 315 && y <= 375 && x >= 254) {
         backupConfirm = false;
         bool ok = pet.restoreFromSD();
         if (ok) {
@@ -2020,7 +2020,7 @@ void settingsTap(int16_t x, int16_t y) {
         backupStatus = ok ? 3 : 4; backupStatusUntil = millis() + 2500;
         return;
       }
-      if (y >= 350 && y <= 430 && x >= 72 && x < 212) { backupConfirm = false; return; }
+      if (y >= 315 && y <= 375 && x >= 72 && x < 212) { backupConfirm = false; return; }
       return;
     }
     if (y >= 195 && y <= 257) {
