@@ -1881,14 +1881,17 @@ void renderBackup() {
     gfx->fillRoundRect(48, 152, 370, 244, 18, UI_WHITE);
     gfx->drawRoundRect(48, 152, 370, 244, 18, UI_INK);
     gfx->setTextColor(UI_INK);
-    setSize(3);
-    char q[32];
-    if (backupConfirm == 2) snprintf(q, sizeof(q), "SAVE %u?", backupSlot);
-    else snprintf(q, sizeof(q), "RESTORE %u?", backupSlot);
-    setCur(centerX(q, 3), 184);
     setSize(2);
-    const char *msg = backupConfirm == 2 ? forkLabel("OVERWRITE SAVE", "SPIELSTAND UEBERSCHREIBEN") : forkLabel("REPLACE SAVE", "SPIELSTAND ERSETZEN");
-    setCur(centerX(msg, 2), 224);
+    const char *q1 = forkLabel("ARE YOU SURE?", "SIND SIE SICHER?");
+    const char *q2 = backupConfirm == 2
+                       ? forkLabel("OVERWRITE SAVE", "SPIELSTAND UEBERSCHREIBEN")
+                       : forkLabel("REPLACE SAVE", "SPIELSTAND ERSETZEN");
+    char q2buf[48];
+    snprintf(q2buf, sizeof(q2buf), "%s %u?", q2, backupSlot);
+    setCur(centerX(q1, 2), 184);
+    printT(q1);
+    setCur(centerX(q2buf, 2), 218);
+    printT(q2buf);
     gfx->fillRoundRect(70, 300, 140, 58, 12, UI_BAR_BAD);
     gfx->fillRoundRect(256, 300, 140, 58, 12, UI_BAR_OK);
     gfx->setTextColor(UI_BG_DAY);
