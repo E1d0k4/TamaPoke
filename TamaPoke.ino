@@ -1608,11 +1608,22 @@ static void drawClockIcon(int cx, int cy, uint16_t col) {
 }
 
 static void drawLanguageIcon(int cx, int cy, uint16_t col) {
-  gfx->drawCircle(cx, cy, 23, col);
-  gfx->drawLine(cx - 20, cy, cx + 20, cy, col);
-  gfx->drawLine(cx, cy - 20, cx, cy + 20, col);
-  gfx->drawLine(cx - 10, cy - 20, cx - 10, cy + 20, col);
-  gfx->drawLine(cx + 10, cy - 20, cx + 10, cy + 20, col);
+  // Translate-Symbol: A + fremdsprachige Schrift + Wechselpfeile.
+  gfx->setTextColor(col);
+  setSize(3);
+  setCur(cx - 20, cy - 18);
+  printT("A");
+
+  gfx->drawLine(cx + 3, cy - 13, cx + 18, cy - 13, col);
+  gfx->drawLine(cx + 7, cy - 6, cx + 20, cy - 6, col);
+  gfx->drawLine(cx + 3, cy + 1, cx + 18, cy + 1, col);
+  gfx->drawLine(cx + 7, cy + 8, cx + 20, cy + 8, col);
+
+  gfx->drawLine(cx - 18, cy + 15, cx + 18, cy + 15, col);
+  gfx->drawLine(cx - 18, cy + 15, cx - 11, cy + 10, col);
+  gfx->drawLine(cx - 18, cy + 15, cx - 11, cy + 20, col);
+  gfx->drawLine(cx + 18, cy + 15, cx + 11, cy + 10, col);
+  gfx->drawLine(cx + 18, cy + 15, cx + 11, cy + 20, col);
 }
 
 static void drawBackupIcon(int cx, int cy, uint16_t col) {
@@ -1998,7 +2009,7 @@ void settingsTap(int16_t x, int16_t y) {
     }
   } else if (settingsPage == 2) {
     if (tamaDashHandleSunTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
-    if (y >= 290 && y <= 348) {
+    if (y >= 265 && y <= 323) {
       if (x >= 104 && x < 190) userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
       else if (x >= 304 && x < 390) userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
       else return;
@@ -2555,16 +2566,6 @@ void drawBattery() {
 
 void drawHeader(const char *name, uint16_t nameColor, const char *msg) {
   drawBattery();
-  // Kleines A als sichtbare Sprach-/Uebersetzungsanzeige im Hauptbildschirm.
-  // Die eigentliche Sprachwahl bleibt ausschliesslich im Einstellungen-Menue.
-  gfx->setTextColor(inkColor());
-  setSize(2);
-  setCur(406, 10);
-  printT("A");
-  // kleines Gegenzeichen fuer Uebersetzung: A <-> Sprache, ohne zusaetzliche Menue-Kachel
-  gfx->drawLine(425, 16, 438, 16, inkColor());
-  gfx->drawLine(434, 12, 438, 16, inkColor());
-  gfx->drawLine(434, 20, 438, 16, inkColor());
   gfx->setTextColor(nameColor);
   setSize(3);
   setCur(centerX(name, 3), 52);
