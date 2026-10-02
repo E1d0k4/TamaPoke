@@ -265,6 +265,35 @@ bool Pet::backupSlotExists(uint8_t slot) const {
   return path && SD_MMC.exists(path);
 }
 
+bool Pet::backupSlotInfo(uint8_t slot, int16_t &species, uint32_t &age, uint32_t &seenEpoch) const {
+  species = -1;
+  age = 0;
+  seenEpoch = 0;
+  const char *path = backupSlotPath(slot);
+  if (!path || !SD_MMC.cardSize()) return false;
+
+  File f = SD_MMC.open(path, FILE_READ);
+  if (!f || f.size() != sizeof(PetBackup)) {
+    if (f) f.close();
+    return false;
+  }
+
+  PetBackup b{};
+  size_t got = f.read(reinterpret_cast<uint8_t*>(&b), sizeof(b));
+  f.close();
+  if (got != sizeof(b) || memcmp(b.magic, "TPKB", 4) != 0 ||
+      b.version != PET_BACKUP_VERSION || b.size != sizeof(PetBackup)) return false;
+
+  uint32_t stored = b.crc;
+  b.crc = 0;
+  if (backupCrc(reinterpret_cast<const uint8_t*>(&b) + 12, sizeof(PetBackup) - 12) != stored) return false;
+
+  species = b.species;
+  age = b.age;
+  seenEpoch = b.seen;
+  return true;
+}
+
 bool Pet::backupToSD(uint8_t slot) {
   const char *path = backupSlotPath(slot);
   const char *tmp = backupSlotTempPath(slot);
