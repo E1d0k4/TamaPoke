@@ -2010,7 +2010,6 @@ void settingsTap(int16_t x, int16_t y) {
       applyClock(); return;
     }
   } else if (settingsPage == 2) {
-    if (tamaDashHandleSunTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
     if (y >= 265 && y <= 323) {
       if (x >= 104 && x < 190) userBrightness = (userBrightness <= 10) ? 10 : userBrightness - 10;
       else if (x >= 304 && x < 390) userBrightness = (userBrightness >= 100) ? 100 : userBrightness + 10;
@@ -2125,6 +2124,7 @@ void settingsTap(int16_t x, int16_t y) {
     }
     if (y >= 398 && y <= 442) { settingsPage = 0; return; }
   } else if (settingsPage == 6) {
+    if (tamaDashHandleInfoTap(x, y)) { tamaDashOpen(); settingsOpen = false; return; }
     if (y >= 398 && y <= 442) { settingsPage = 0; return; }
   }
 }
