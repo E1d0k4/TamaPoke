@@ -1628,11 +1628,6 @@ static void drawInfoIcon(int cx, int cy, uint16_t col) {
   gfx->fillRoundRect(cx - 3, cy - 2, 6, 19, 2, col);
 }
 
-static void drawSettingsBack(int cx, int cy, uint16_t col) {
-  gfx->drawLine(cx + 14, cy, cx - 12, cy, col);
-  gfx->drawLine(cx - 12, cy, cx - 2, cy - 10, col);
-  gfx->drawLine(cx - 12, cy, cx - 2, cy + 10, col);
-}
 
 static void drawSettingsTile(int x, int y, uint8_t kind, const char *label) {
   gfx->fillRoundRect(x, y, 126, 116, 18, UI_WHITE);
