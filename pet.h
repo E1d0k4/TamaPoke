@@ -173,6 +173,7 @@ public:
   bool backupToSD(uint8_t slot);
   bool restoreFromSD(uint8_t slot);
   bool backupSlotExists(uint8_t slot) const;
+  bool deleteBackupSlot(uint8_t slot);
   bool backupSlotInfo(uint8_t slot, int16_t &species, uint32_t &ageMinutes, uint32_t &seenEpoch) const;
 
 private:
