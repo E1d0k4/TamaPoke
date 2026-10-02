@@ -59,6 +59,13 @@ enum StrId : uint8_t {
   // dialogos de decision (evolucionar/mantener, despedirse/quedaros)
   S_EVO_Q, S_EVO_KEEP, S_FAR_Q, S_FAR_GO, S_FAR_STAY,
   S_CHOOSE_STARTER,  // titulo de la eleccion del inicial (primera vez)
+  // Fork settings UI: English for all non-DE languages, German only for DE.
+  S_FK_SETTINGS, S_FK_CLOCK, S_FK_BRIGHTNESS, S_FK_VOLUME, S_FK_LANGUAGE,
+  S_FK_BACKUP, S_FK_INFO, S_FK_SAVE, S_FK_RESTORE, S_FK_EMPTY, S_FK_OCCUPIED,
+  S_FK_SOUND_ON, S_FK_SOUND_OFF, S_FK_CANCEL, S_FK_BACK, S_FK_OK,
+  S_FK_SAVE_OK, S_FK_SAVE_FAIL, S_FK_RESTORE_OK, S_FK_RESTORE_FAIL,
+  S_FK_SAVE_OVERWRITE, S_FK_SAVE_OVERWRITE_Q, S_FK_RESTORE_REPLACE_Q,
+  S_FK_NO, S_FK_YES, S_FK_SAVE_SLOTS
   S_NO_SPRITES, S_LOAD_SPRITES,  // aviso cuando falta el sprite en la SD
   STR_COUNT
 };
