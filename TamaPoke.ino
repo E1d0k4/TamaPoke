@@ -176,7 +176,6 @@ void updateBrightness(uint32_t now);
 
 // proteccion del AMOLED: atenuado por inactividad
 uint32_t lastInteract = 0;
-static constexpr uint32_t SETTINGS_IDLE_MS = 60000;
 uint8_t dimStage = 0;        // 0 despierto, 1 atenuado (90s), 2 casi apagado (5min)
 bool swallowGesture = false; // el toque que despierta no acciona nada
 uint32_t holdStart = 0;     // pulsacion larga sobre el bicho
@@ -321,15 +320,6 @@ void loop() {
       screenOff = !screenOff;
       if (!screenOff) lastInteract = now;
     }
-  }
-
-  // Einstellungen nach Inaktivitaet automatisch verlassen.
-  if (settingsOpen && now - lastInteract >= SETTINGS_IDLE_MS) {
-    settingsOpen = false;
-    clockOpen = false;
-    backupConfirm = 0;
-    backupStatus = 0;
-    tamaDashResetEasterEgg();
   }
 
   updateBrightness(now);
