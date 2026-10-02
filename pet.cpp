@@ -261,7 +261,7 @@ bool Pet::backupToSD() {
   b.snd=prefs.getBool("snd", true) ? 1 : 0;
   b.vol=prefs.getUChar("vol", 100);
   b.crc = 0;
-  b.crc = backupCrc(reinterpret_cast<const uint8_t*>(&b) + 10, sizeof(PetBackup) - 10);
+  b.crc = backupCrc(reinterpret_cast<const uint8_t*>(&b) + 12, sizeof(PetBackup) - 12);
 
   if (SD_MMC.exists(PET_BACKUP_PATH)) SD_MMC.remove(PET_BACKUP_PATH);
   File f = SD_MMC.open(PET_BACKUP_PATH, FILE_WRITE);
