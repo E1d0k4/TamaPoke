@@ -24,6 +24,7 @@
 #include "audio.h"
 #include "TamaDash.h"
 #include <Preferences.h>
+#include <time.h>
 
 // Versiones: la original se conserva como referencia; la fork tiene su propia
 // numeracion semantica y avanza de forma independiente.
@@ -1610,8 +1611,8 @@ static void drawLanguageIcon(int cx, int cy, uint16_t col) {
   gfx->drawCircle(cx, cy, 23, col);
   gfx->drawLine(cx - 20, cy, cx + 20, cy, col);
   gfx->drawLine(cx, cy - 20, cx, cy + 20, col);
-  gfx->drawArc(cx, cy, 12, 23, 0, 360, col);
-  gfx->drawArc(cx, cy, 12, 23, 180, 360, col);
+  gfx->drawLine(cx - 10, cy - 20, cx - 10, cy + 20, col);
+  gfx->drawLine(cx + 10, cy - 20, cx + 10, cy + 20, col);
 }
 
 static void drawBackupIcon(int cx, int cy, uint16_t col) {
@@ -1737,11 +1738,6 @@ void renderClock() {
   setCur(276, 211);
   printT(T(S_MIN));
 
-  gfx->fillRoundRect(70, 330, 150, 54, 14, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(145, 343);
-  printT("OK");
   gfx->fillRoundRect(246, 330, 150, 54, 14, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -1765,11 +1761,6 @@ void renderBrightness() {
   printT(b);
   drawSettingButton(104, 290, "-");
   drawSettingButton(304, 290, "+");
-  gfx->fillRoundRect(72, 370, 140, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(142, 381);
-  printT("OK");
   gfx->fillRoundRect(254, 370, 140, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -1838,11 +1829,6 @@ void renderLanguage() {
   setCur(92 + (282 - textW(sl, 2)) / 2, 362);
   printT(sl);
 
-  gfx->fillRoundRect(72, 400, 140, 48, 12, UI_BAR_OK);
-  gfx->setTextColor(UI_BG_DAY);
-  setSize(3);
-  setCur(142, 411);
-  printT("OK");
   gfx->fillRoundRect(254, 400, 140, 48, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
@@ -2029,9 +2015,8 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       saveUserBrightness(); lastInteract = millis(); updateBrightness(millis()); sfxPlay(SFX_TAP); return;
     }
-    if (y >= 370 && y <= 430) {
-      if (x >= 254) { settingsPage = 0; return; }
-      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    if (y >= 370 && y <= 430 && x >= 254) {
+      settingsPage = 0; return;
     }
   } else if (settingsPage == 3) {
     if (y >= 290 && y <= 348) {
@@ -2040,9 +2025,8 @@ void settingsTap(int16_t x, int16_t y) {
       else return;
       sfxPlay(SFX_TAP); return;
     }
-    if (y >= 370 && y <= 430) {
-      if (x >= 254) { settingsPage = 0; return; }
-      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    if (y >= 370 && y <= 430 && x >= 254) {
+      settingsPage = 0; return;
     }
   } else if (settingsPage == 4) {
     if (y >= 285 && y <= 341) {
@@ -2053,9 +2037,8 @@ void settingsTap(int16_t x, int16_t y) {
     if (y >= 350 && y <= 390) {
       audioSetEnabled(!audioEnabled()); if (audioEnabled()) sfxPlay(SFX_TAP); return;
     }
-    if (y >= 400 && y <= 455) {
-      if (x >= 254) { settingsPage = 0; return; }
-      if (x >= 72 && x < 212) { settingsPage = 0; return; }
+    if (y >= 400 && y <= 455 && x >= 254) {
+      settingsPage = 0; return;
     }
   } else if (settingsPage == 5) {
     if (backupConfirm) {
