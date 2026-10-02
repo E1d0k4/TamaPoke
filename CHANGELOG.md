@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.6] - 2026-10-02
+
+### Added
+
+- Zelda-style **three-slot SD save system**: choose save slot 1, 2 or 3 independently.
+- Each slot is a separate backup file, so the device can be shared without overwriting another person's save.
+- The backup page shows whether each slot is **LEER** or **BELEGT** and requires confirmation before restoring.
+
+### Changed
+
+- Saving overwrites only the selected slot.
+- Saves are written to a temporary file first and then renamed, so a failed write does not immediately destroy the previous slot.
+- Firmware version updated to 0.2.6.
+
 ## [0.2.5] - 2026-10-02
 
 ### Added
