@@ -4,6 +4,7 @@
 // damit Wald, Fuchs und Hindernisse der Weltkrümmung folgen.
 
 #include "TamaDash.h"
+#include "TamaDashEeveeSprites.h"
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -445,63 +446,61 @@ static void drawBranchTree(float tx) {
   circ(f, -40, 108, 20, c2);
 }
 
-static void drawFox() {
-  Frame f = frameAt(foxX, -jumpH, sc * 0.8f);
-  uint16_t org = rgb(242, 128, 42);
-  uint16_t dko = rgb(200, 92, 25);
-  uint16_t cre = rgb(255, 242, 218);
-  uint16_t brn = rgb(62, 36, 26);
+static void drawEevee() {
+  // The source sheet faces left; mirror it so Eevee runs in the same
+  // direction as the former fox. The sprite is drawn in the local
+  // curved-ground coordinate system so it follows the planet surface.
+  const char *rows = nullptr;
+  uint8_t sw = 0;
+  uint8_t sh = 0;
 
-  float ph = runTime * 14.0f;
-  float wag = sinf(runTime * 9.0f) * 4.0f;
   bool air = jumpH > 0.5f;
+  uint8_t frame = (uint8_t)(runTime * 10.0f) % 3;
 
-  auto leg = [&](float hx, float phase, uint16_t col) {
-    float fxo;
-    float fyo;
+  if (air) {
+    // Use the stretched side pose for the airborne phase.
+    rows = TD_EEVEE_RUN2;
+    sw = TD_EEVEE_RUN2_W;
+    sh = TD_EEVEE_RUN2_H;
+  } else if (frame == 0) {
+    rows = TD_EEVEE_RUN0;
+    sw = TD_EEVEE_RUN0_W;
+    sh = TD_EEVEE_RUN0_H;
+  } else if (frame == 1) {
+    rows = TD_EEVEE_RUN1;
+    sw = TD_EEVEE_RUN1_W;
+    sh = TD_EEVEE_RUN1_H;
+  } else {
+    rows = TD_EEVEE_RUN2;
+    sw = TD_EEVEE_RUN2_W;
+    sh = TD_EEVEE_RUN2_H;
+  }
 
-    if (air) {
-      fxo = hx + (hx > 0 ? 11 : -11);
-      fyo = 5;
-    } else {
-      // Der Koerper bleibt unveraendert; nur die Beinbewegung wird umgekehrt.
-      fxo = hx - sinf(ph + phase) * 9;
-      fyo = fmaxf(0.0f, -cosf(ph + phase)) * 6;
+  const float pxScale = 2.0f * sc;
+  Frame f = frameAt(foxX, -jumpH, pxScale);
+
+  for (uint8_t sy = 0; sy < sh; ++sy) {
+    for (uint8_t sx = 0; sx < sw; ++sx) {
+      char ch = rows[sy][sx];
+      if (ch == '.') continue;
+
+      uint8_t pi = (ch >= '0' && ch <= '9')
+                 ? (uint8_t)(ch - '0')
+                 : (uint8_t)(10 + ch - 'A');
+      if (pi >= sizeof(TD_EEVEE_PALETTE) / sizeof(TD_EEVEE_PALETTE[0]))
+        continue;
+
+      // Mirror horizontally: the source Eevee faces left.
+      float localX = (float)((sw - 1) - sx) - (float)(sw - 1) * 0.5f;
+      float localY = (float)(sh - 1 - sy) + 1.0f;
+
+      int ox, oy;
+      P(f, localX, localY, ox, oy);
+      int ps = ri(pxScale);
+      if (ps < 1) ps = 1;
+      g->fillRect(ox, oy, ps, ps, TD_EEVEE_PALETTE[pi]);
     }
-
-    limb(f, hx, 17, fxo, fyo + 3, 5.5f, col);
-    circ(f, fxo, fyo + 3, 3.3f, brn);
-  };
-
-  // Langer, klarer buschiger Schwanz nach hinten.
-  tri(f, -10, 31, -10, 14, -52, 36 + wag, org);
-  circ(f, -28, 26, 10, org);
-  circ(f, -40, 31 + wag * 0.5f, 10.5f, org);
-  circ(f, -52, 36 + wag, 8.5f, cre);
-
-  leg(-9, 3.14159f, dko);
-  leg(13, 0, dko);
-
-  circ(f, -10, 24, 10.5f, org);
-  circ(f, 10, 24, 10.5f, org);
-  quad(f, -10, 13.5f, 10, 13.5f, 10, 34.5f, -10, 34.5f, org);
-  circ(f, 13, 25, 6, cre);
-
-  circ(f, 22, 38, 12, org);
-  tri(f, 28, 45, 30, 30, 43, 36, org);
-  tri(f, 23, 30, 32, 27, 41, 34, cre);
-  circ(f, 43, 36, 2.8f, brn);
-
-  tri(f, 11, 46, 13, 67, 24, 50, org);
-  tri(f, 19, 49, 29, 68, 32, 46, org);
-  tri(f, 14, 49, 15, 60, 21, 51, brn);
-  tri(f, 23, 51, 28, 61, 29, 48, brn);
-
-  circ(f, 26, 41, 3.4f, brn);
-  circ(f, 27, 42.3f, 1.2f, cre);
-
-  leg(-13, 0, brn);
-  leg(10, 3.14159f, brn);
+  }
 }
 
 static void textCentered(const char *s, float cxx, float y,
@@ -617,7 +616,7 @@ static void draw() {
     else if (obs[i].type == OB_BRANCH) drawBranchTree(obs[i].x);
   }
 
-  drawFox();
+  drawEevee();
   drawHud();
 }
 
