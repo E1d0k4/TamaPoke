@@ -1598,7 +1598,7 @@ static void drawSettingButton(int x, int y, const char *label) {
   setCur(x + 23, y + 9);
   printT(label);
 }
-\nstatic const char *forkLabel(const char *en, const char *de) {
+static const char *forkLabel(const char *en, const char *de) {
   return gLang == LANG_DE ? de : en;
 }
 
@@ -1956,9 +1956,9 @@ void renderBackup() {
 
   if (backupStatusUntil && millis() > backupStatusUntil) backupStatus = 0;
   if (backupStatus) {
-    const char *msg = backupStatus == 1 ? "SAVE OK" :
+    const char *msg = backupStatus == 1 ? forkLabel("SAVE OK", "SICHERN OK") :
                      backupStatus == 2 ? forkLabel("SAVE FAILED", "SAVE FEHLER") :
-                     backupStatus == 3 ? "RESTORE OK" : forkLabel("RESTORE FAILED", "RESTORE FEHLER");
+                     backupStatus == 3 ? forkLabel("RESTORE OK", "WIEDERHERSTELLEN OK") : forkLabel("RESTORE FAILED", "RESTORE FEHLER");
     gfx->setTextColor(backupStatus == 1 || backupStatus == 3 ? UI_BAR_OK : UI_BAR_BAD);
     setSize(1);
     setCur(centerX(msg, 1), 388);
@@ -1985,9 +1985,9 @@ void renderInfo() {
   snprintf(f, sizeof(f), "Fork: %s", FORK_VERSION);
   setCur(centerX(o, 2), 120); printT(o);
   setCur(centerX(f, 2), 150); printT(f);
-  setCur(centerX("SD SAVE SLOTS: 1 / 2 / 3", 2), 205); printT("SD SAVE SLOTS: 1 / 2 / 3");
-  setCur(centerX("TamaPoke", 2), 260); printT("TamaPoke");
-  setCur(centerX("ESP32-S3 / 466x466", 2), 290); printT("ESP32-S3 / 466x466");
+  setCur(centerX(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"), 2), 205); printT(forkLabel("SD SAVE SLOTS: 1 / 2 / 3", "SD-SPEICHERPLAETZE: 1 / 2 / 3"));
+  setCur(centerX(forkLabel("TamaPoke", "TamaPoke"), 2), 260); printT(forkLabel("TamaPoke", "TamaPoke"));
+  setCur(centerX(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"), 2); printT(forkLabel("ESP32-S3 / 466x466", "ESP32-S3 / 466x466"));
   gfx->fillRoundRect(72, 400, 324, 44, 12, UI_BAR_OK);
   gfx->setTextColor(UI_BG_DAY);
   setSize(3);
