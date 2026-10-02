@@ -68,7 +68,7 @@ static uint8_t versionTaps = 0;
 static uint32_t lastVersionTapMs = 0;
 
 static constexpr uint8_t VEGG_VERSION_TAPS = 5;
-static constexpr uint32_t VEGG_VERSION_MAX_GAP_MS = 1000;
+static constexpr uint32_t VEGG_VERSION_MAX_GAP_MS = 1500;
 static constexpr uint32_t VEGG_GAMEOVER_IDLE_MS = 6000;
 
 static constexpr uint16_t VEGG_WHITE = 0xFFFF;
@@ -658,7 +658,7 @@ void veggResetEasterEgg() {
 bool veggHandleVersionTap(int16_t x, int16_t y) {
   // Versteckter Trigger auf der sichtbaren Fork-Versionszeile.
   // Dadurch liegt der Trigger nicht mehr auf dem spaeteren Zurueck-Pfeil.
-  const bool inside = (x >= 120 && x <= 346 && y >= 128 && y <= 180);
+  const bool inside = (x >= 90 && x <= 376 && y >= 108 && y <= 190);
   if (!inside) {
     versionTaps = 0;
     lastVersionTapMs = 0;
