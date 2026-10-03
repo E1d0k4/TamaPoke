@@ -246,12 +246,23 @@ static void spawn() {
   }
   if (idx < 0) return;
 
-  // Erst nach kurzer Eingewoehnung kommen die niedrigen Aeste.
-  ObType type = (score >= 15 && frand() < 0.40f) ? OB_BRANCH : OB_BUSH;
+  // Schon frueh kommen beide Hindernistypen vor. Spaeter steigt der
+  // Anteil der Aeste leicht, damit die Laufbahn abwechslungsreicher wird.
+  float branchChance = score >= 15 ? 0.45f : 0.20f;
+  if (score >= 80) branchChance = 0.50f;
+  ObType type = (frand() < branchChance) ? OB_BRANCH : OB_BUSH;
+
   obs[idx].type = type;
   obs[idx].x = W + (type == OB_BRANCH ? 140.0f : 40.0f) * sc;
-  nextGap = speed * (0.95f + frand() * 0.80f)
-          + (type == OB_BRANCH ? 120.0f : 50.0f) * sc;
+
+  // Deutlich kuerzere Abstaende als zuvor. Der Zufallsbereich bleibt aber
+  // gross genug, damit keine starre Hindernisfolge entsteht.
+  // Die Mindestdistanz verhindert, dass zwei Hindernisse praktisch
+  // unueberwindbar direkt hintereinander auftauchen.
+  const float minGap = speed * 0.62f + 70.0f * sc;
+  const float randomGap = speed * (0.15f + frand() * 0.48f)
+                         + (type == OB_BRANCH ? 105.0f : 70.0f) * sc;
+  nextGap = fmaxf(minGap, randomGap);
 }
 
 static bool collides() {
@@ -298,7 +309,9 @@ static void update(float dt) {
   if (st == ST_GAMEOVER || st == ST_EXIT) return;
 
   runTime += dt;
-  speed = fminf(240.0f + 5.0f * runTime, 480.0f) * sc;
+  // Etwas schnellerer Anstieg: Starttempo bleibt unveraendert,
+  // aber die spaeteren Abschnitte werden frueher anspruchsvoll.
+  speed = fminf(240.0f + 7.0f * runTime, 500.0f) * sc;
   dist += speed * dt;
   score = (uint32_t)(dist / (10.0f * sc));
 
