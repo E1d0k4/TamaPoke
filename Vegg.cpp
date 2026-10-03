@@ -246,22 +246,23 @@ static void spawn() {
   }
   if (idx < 0) return;
 
-  // Schon frueh kommen beide Hindernistypen vor. Spaeter steigt der
-  // Anteil der Aeste leicht, damit die Laufbahn abwechslungsreicher wird.
+  // Beide Hindernistypen kommen frueh vor. Mit steigendem Score
+  // werden Folgen abwechslungsreicher und etwas haeufiger.
   float branchChance = score >= 15 ? 0.45f : 0.20f;
   if (score >= 80) branchChance = 0.50f;
+  if (score >= 180) branchChance = 0.55f;
   ObType type = (frand() < branchChance) ? OB_BRANCH : OB_BUSH;
 
   obs[idx].type = type;
   obs[idx].x = W + (type == OB_BRANCH ? 140.0f : 40.0f) * sc;
 
-  // Deutlich kuerzere Abstaende als zuvor. Der Zufallsbereich bleibt aber
-  // gross genug, damit keine starre Hindernisfolge entsteht.
-  // Die Mindestdistanz verhindert, dass zwei Hindernisse praktisch
-  // unueberwindbar direkt hintereinander auftauchen.
-  const float minGap = speed * 0.62f + 70.0f * sc;
-  const float randomGap = speed * (0.15f + frand() * 0.48f)
-                         + (type == OB_BRANCH ? 105.0f : 70.0f) * sc;
+  // Engere Abstaende ermoeglichen anspruchsvollere Sprungfolgen.
+  // Die Distanz ist so gewaehlt, dass ein normaler Sprung weiterhin
+  // mehrere Hindernisse ueberwinden kann und ein zweiter Touch zum
+  // kontrollierten Fastfall sinnvoll wird.
+  const float minGap = speed * 0.48f + 55.0f * sc;
+  const float randomGap = speed * (0.10f + frand() * 0.36f)
+                         + (type == OB_BRANCH ? 75.0f : 55.0f) * sc;
   nextGap = fmaxf(minGap, randomGap);
 }
 
