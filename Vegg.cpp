@@ -309,9 +309,9 @@ static void update(float dt) {
   if (st == ST_GAMEOVER || st == ST_EXIT) return;
 
   runTime += dt;
-  // Etwas schnellerer Anstieg: Starttempo bleibt unveraendert,
-  // aber die spaeteren Abschnitte werden frueher anspruchsvoll.
-  speed = fminf(240.0f + 7.0f * runTime, 500.0f) * sc;
+  // Starttempo bleibt unveraendert, aber die Geschwindigkeit steigt
+  // deutlich schneller und erreicht ein hoeheres spaetes Maximum.
+  speed = fminf(240.0f + 12.0f * runTime, 700.0f) * sc;
   dist += speed * dt;
   score = (uint32_t)(dist / (10.0f * sc));
 
